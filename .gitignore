@@ -8,6 +8,13 @@
 *.so
 *.dylib
 
+# Compiled entrypoints. `make build` writes them to bin/; a bare `go build
+# ./cmd/api` drops one in the repository root.
+/bin/
+/api
+/admin
+/worker
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -30,3 +37,6 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Local product and architecture documents
+/docs/
