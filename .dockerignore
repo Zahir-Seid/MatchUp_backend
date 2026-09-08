@@ -1,0 +1,22 @@
+# The build context is the module source. Anything the builder does not compile
+# from is excluded, both to keep the context small and to keep secrets and host
+# build output from being copied into a layer.
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+docs
+docker-compose.yml
+Dockerfile
+.dockerignore
+Makefile
+README.md
+# Host build artifacts, if a local `go build -o` left any behind.
+/api
+/admin
+/worker
+/bin
+*.test
+*.out
+coverage.*

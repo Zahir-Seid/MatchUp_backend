@@ -1,0 +1,75 @@
+# Local development only. Staging and production run on Railway against a
+# Supabase Postgres instance (SDD 12.1); nothing here is deployed.
+#
+# First run:
+#   make env          # copies .env.example to .env
+#   docker compose up --build
+#
+# The three services share one image and differ only in which binary they run.
+name: matchup
+
+x-app: &app
+  build: .
+  env_file: [.env]
+  # Overrides .env: inside the network the database is a service name, not
+  # localhost, whatever the host file says.
+  environment: &app-env
+    DATABASE_URL: postgres://matchup:localdev@postgres:5432/matchup?sslmode=disable
+  depends_on:
+    postgres: {condition: service_healthy}
+    migrate: {condition: service_completed_successfully}
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: matchup
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: matchup
+    ports: ["55432:5432"]   # 5432 is taken by the host Postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matchup -d matchup"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # Runs once and exits. The three processes wait for it to succeed, so none of
+  # them starts against a schema that is missing the tables it queries.
+  migrate:
+    build: .
+    command: ["/app/goose", "-dir", "/app/migrations", "up"]
+    environment:
+      GOOSE_DRIVER: postgres
+      GOOSE_DBSTRING: postgres://matchup:localdev@postgres:5432/matchup?sslmode=disable
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+  api:
+    <<: *app
+    command: ["/app/api"]
+    ports: ["8080:8080"]
+
+  admin:
+    <<: *app
+    command: ["/app/admin"]
+    environment:
+      <<: *app-env
+      # The admin binary binds ADMIN_PORT, not PORT: the two APIs run as
+      # separate processes and a platform that injects one PORT per service
+      # would otherwise put them both on the same number.
+      ADMIN_PORT: "8081"
+      # Vite's default dev-server origin. The allowlist is exact, so a
+      # dashboard served from another port has to be added here.
+      ADMIN_CORS_ORIGINS: http://localhost:5173
+    ports: ["8081:8081"]
+
+  worker:
+    <<: *app
+    command: ["/app/worker"]
+    # No ports: it serves nothing. Health is visible in its log lines.
+
+volumes:
+  pgdata:
