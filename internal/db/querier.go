@@ -37,8 +37,8 @@ type Querier interface {
 	// sweep runs or how many workers are running it.
 	ClaimBookingsNearingExpiry(ctx context.Context, arg ClaimBookingsNearingExpiryParams) ([]ClaimBookingsNearingExpiryRow, error)
 	ClaimEmails(ctx context.Context, batchSize int32) ([]EmailOutbox, error)
-	// Same claim-and-mark shape as the verification queue, so push and email
-	// retry independently of each other and of the state change that queued them.
+	// Same claim-and-mark shape as the verification queue, so a delivery retries
+	// independently of the state change that queued it.
 	ClaimNotificationDeliveries(ctx context.Context, batchSize int32) ([]NotificationDelivery, error)
 	// Claim and mark in a single statement so no window exists where a row is
 	// selected but not yet owned. SKIP LOCKED lets several workers claim disjoint
@@ -79,8 +79,6 @@ type Querier interface {
 	CreateVerificationJob(ctx context.Context, arg CreateVerificationJobParams) (PaymentVerificationJob, error)
 	// Lowering capacity can only consume spots that are still free.
 	DecreaseGameCapacity(ctx context.Context, arg DecreaseGameCapacityParams) (Game, error)
-	// FCM reported the token as unregistered; drop it (SDD 11.2).
-	DeleteDeviceToken(ctx context.Context, fcmToken string) (int64, error)
 	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
 	// Transactional email queue. Same claim/retry contract as the other queues.
 	EnqueueEmail(ctx context.Context, arg EnqueueEmailParams) (EmailOutbox, error)
@@ -102,6 +100,8 @@ type Querier interface {
 	FailEmail(ctx context.Context, arg FailEmailParams) error
 	GetBooking(ctx context.Context, id uuid.UUID) (Booking, error)
 	GetBookingForUser(ctx context.Context, arg GetBookingForUserParams) (Booking, error)
+	// The dashboard-editable booking policy. One row; see the migration.
+	GetBookingSettings(ctx context.Context) (BookingSetting, error)
 	GetBookingWithUser(ctx context.Context, id uuid.UUID) (GetBookingWithUserRow, error)
 	GetField(ctx context.Context, id uuid.UUID) (Field, error)
 	GetGame(ctx context.Context, id uuid.UUID) (Game, error)
@@ -131,7 +131,6 @@ type Querier interface {
 	ListBookingsForAdmin(ctx context.Context, arg ListBookingsForAdminParams) ([]ListBookingsForAdminRow, error)
 	ListBookingsForUser(ctx context.Context, arg ListBookingsForUserParams) ([]Booking, error)
 	ListDeliveryContexts(ctx context.Context, deliveryIds []uuid.UUID) ([]ListDeliveryContextsRow, error)
-	ListDeviceTokensForUser(ctx context.Context, userID uuid.UUID) ([]DeviceToken, error)
 	// The admin game list. Unlike the public query this shows cancelled and past
 	// games too: an admin managing a schedule needs to see what was cancelled and
 	// what already happened, not only what is still on sale.
@@ -208,10 +207,10 @@ type Querier interface {
 	// writing a role the CHECK constraint would reject anyway.
 	SetUserRole(ctx context.Context, arg SetUserRoleParams) (User, error)
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
+	UpdateBookingSettings(ctx context.Context, arg UpdateBookingSettingsParams) (BookingSetting, error)
 	UpdateField(ctx context.Context, arg UpdateFieldParams) (Field, error)
 	UpdateGame(ctx context.Context, arg UpdateGameParams) (Game, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
-	UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenParams) (DeviceToken, error)
 	// The headline operational metric (PRD 15): what share of payments cleared
 	// without a human touching them.
 	VerificationOutcomeSummary(ctx context.Context, arg VerificationOutcomeSummaryParams) (VerificationOutcomeSummaryRow, error)

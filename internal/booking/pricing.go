@@ -13,6 +13,25 @@ const (
 	TypeMonthly4W = "monthly_4wk"
 )
 
+// DiscountPolicy is the monthly-plan discount as the dashboard currently
+// configures it. It is read per quote rather than captured at boot, so an admin
+// edit applies to the next quote without a restart.
+type DiscountPolicy struct {
+	// BPS is the discount in basis points of the subtotal (1250 = 12.5%).
+	BPS int32
+	// Label is the phrase the app shows beside the deduction.
+	Label string
+}
+
+// DefaultDiscountPolicy is the launch configuration, identical to what the
+// pricing code hardcoded before the dashboard owned it: half of one week's
+// charge on a four-week plan (12.5% of the subtotal). It is used when the
+// settings row is missing or unreadable so pricing keeps working.
+var DefaultDiscountPolicy = DiscountPolicy{
+	BPS:   1250,
+	Label: "Half a session free on the monthly plan",
+}
+
 // Quote is the price breakdown shown before confirming (PRD FR11) and the
 // snapshot stored on the booking row. Storing the figures rather than
 // recomputing them means a later price edit never changes what an existing
@@ -54,10 +73,11 @@ type QuoteWeek struct {
 // prices, but nothing in the schema guarantees it, and charging for a price the
 // customer was not shown would be wrong in either direction.
 //
-// The monthly discount is half of one week's charge — "half a session off" as
-// the manual MVP offered it. Expressing it as half the average week rather than
-// half a specific week keeps the intent intact if the four prices ever differ.
-func buildQuote(bookingType string, spotCount int32, games []db.Game) (*Quote, error) {
+// The monthly discount comes from the dashboard's policy, applied to the
+// subtotal in basis points. The launch value is half of one week's charge —
+// "half a session off" as the manual MVP offered it — which for a four-week
+// plan is 12.5% of the subtotal regardless of how the four prices differ.
+func buildQuote(bookingType string, spotCount int32, games []db.Game, policy DiscountPolicy) (*Quote, error) {
 	if len(games) == 0 {
 		return nil, fmt.Errorf("buildQuote: no games to price")
 	}
@@ -84,9 +104,12 @@ func buildQuote(bookingType string, spotCount int32, games []db.Game) (*Quote, e
 
 	var discount money.Santim
 	var label string
-	if bookingType == TypeMonthly4W {
-		discount = (subtotal / money.Santim(weekCount)).Half()
-		label = "Half a session free on the monthly plan"
+	if bookingType == TypeMonthly4W && policy.BPS > 0 {
+		discount = subtotal * money.Santim(policy.BPS) / 10000
+		// The label explains a deduction; with none, a label would lie.
+		if discount > 0 {
+			label = policy.Label
+		}
 	}
 
 	// The bookings table enforces discount < subtotal; a configuration that

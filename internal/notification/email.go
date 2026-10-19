@@ -139,7 +139,7 @@ func greeting(fullName string) string {
 }
 
 // notificationEmail renders a queued notification as an email, reusing the same
-// title and body the push carries so the two channels never disagree.
+// title and body as the feed entry so the two surfaces never disagree.
 func (b Brand) notificationEmail(fullName string, n db.Notification) emailBody {
 	brand := b.withDefaults()
 	return emailBody{

@@ -76,8 +76,8 @@ func Standard(d Deps) []Job {
 
 	if d.Dispatcher != nil {
 		notify := nonZero(c.Notify, 5*time.Second)
-		// Push and email are separate loops so a slow provider on one channel
-		// does not hold up the other.
+		// Feed deliveries and the email outbox are separate loops so a slow
+		// provider on one does not hold up the other.
 		jobs = append(jobs,
 			Job{
 				Name:     "notification-delivery",

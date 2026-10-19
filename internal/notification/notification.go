@@ -1,10 +1,9 @@
 // Package notification owns the in-app feed and the outbound dispatch that
-// mirrors it to push and email.
+// mirrors it to email.
 //
 // A notification row is created in the same transaction as the state change
 // that caused it, so a confirmed booking always has its record. Delivery is a
-// separate queue: a dead FCM token or a Resend outage must never roll back a
-// payment (SDD 8.5).
+// separate queue: a Resend outage must never roll back a payment (SDD 8.5).
 package notification
 
 import (
@@ -33,9 +32,9 @@ const (
 	TypeBookingCancelled = "booking_cancelled"
 )
 
-// Delivery channels.
+// Delivery channels. The feed is the primary surface; email is the only
+// outbound channel. Templates with no channels stay feed-only.
 const (
-	ChannelPush  = "push"
 	ChannelEmail = "email"
 )
 
@@ -228,27 +227,4 @@ func (s *Service) MarkAllRead(ctx context.Context, userID uuid.UUID) (int64, err
 		return 0, fmt.Errorf("mark all notifications read: %w", err)
 	}
 	return affected, nil
-}
-
-// RegisterDevice records or refreshes an FCM token for the caller.
-//
-// The token is unique system-wide: a device that changes hands moves to the new
-// account rather than delivering one user's notifications to another.
-func (s *Service) RegisterDevice(ctx context.Context, userID uuid.UUID, token, platform string) error {
-	if _, err := s.store.UpsertDeviceToken(ctx, db.UpsertDeviceTokenParams{
-		UserID:   userID,
-		FcmToken: token,
-		Platform: platform,
-	}); err != nil {
-		return fmt.Errorf("upsert device token: %w", err)
-	}
-	return nil
-}
-
-// UnregisterDevice drops a token, for sign-out on that device.
-func (s *Service) UnregisterDevice(ctx context.Context, token string) error {
-	if _, err := s.store.DeleteDeviceToken(ctx, token); err != nil {
-		return fmt.Errorf("delete device token: %w", err)
-	}
-	return nil
 }

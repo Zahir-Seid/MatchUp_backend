@@ -61,6 +61,13 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Method(http.MethodPatch, "/{id}/role", httpx.Handler(h.setUserRole))
 	})
 
+	r.Route("/settings", func(r chi.Router) {
+		// The platform pricing policy (the monthly discount). Read by the
+		// public API's quote path, edited here.
+		r.Method(http.MethodGet, "/booking", httpx.Handler(h.getBookingSettings))
+		r.Method(http.MethodPatch, "/booking", httpx.Handler(h.updateBookingSettings))
+	})
+
 	r.Route("/reports", func(r chi.Router) {
 		r.Method(http.MethodGet, "/revenue", httpx.Handler(h.revenueReport))
 		r.Method(http.MethodGet, "/bookings", httpx.Handler(h.bookingVolumeReport))

@@ -92,7 +92,28 @@ func (s *Service) Quote(ctx context.Context, gameID uuid.UUID, bookingType strin
 	if err := s.assertSpotsPlausible(games, spotCount); err != nil {
 		return nil, err
 	}
-	return buildQuote(bookingType, spotCount, games)
+	return buildQuote(bookingType, spotCount, games, s.discountPolicy(ctx))
+}
+
+// discountPolicy reads the dashboard's monthly pricing settings.
+//
+// A missing row — an unseeded database, a test harness that truncated the
+// table — falls back to the built-in default rather than failing the quote, and
+// so does an unreadable one: a settings read must not lose a sale over a value
+// that is, in the worst case, the same 12.5% the code hardcoded before the
+// dashboard owned it. Both cases are logged loudly enough to notice.
+func (s *Service) discountPolicy(ctx context.Context) DiscountPolicy {
+	row, err := s.store.GetBookingSettings(ctx)
+	if err != nil {
+		level := slog.LevelWarn
+		if !db.IsNoRows(err) {
+			level = slog.LevelError
+		}
+		s.log.Log(ctx, level, "booking settings unavailable; using the built-in discount default",
+			slog.Any("error", err))
+		return DefaultDiscountPolicy
+	}
+	return DiscountPolicy{BPS: row.MonthlyDiscountBps, Label: row.MonthlyDiscountLabel}
 }
 
 // Create reserves the spots and records the booking.
@@ -113,7 +134,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*View, error) {
 		return nil, err
 	}
 
-	quote, err := buildQuote(in.BookingType, in.SpotCount, games)
+	quote, err := buildQuote(in.BookingType, in.SpotCount, games, s.discountPolicy(ctx))
 	if err != nil {
 		return nil, err
 	}

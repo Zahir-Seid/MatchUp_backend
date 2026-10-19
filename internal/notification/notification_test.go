@@ -47,8 +47,11 @@ func TestTemplatesRenderWithoutPayload(t *testing.T) {
 		if strings.Contains(body, "%!") {
 			t.Errorf("%s: malformed format verb in body: %s", name, body)
 		}
-		if len(tmpl.channels) == 0 {
-			t.Errorf("%s: no channels", name)
+		// An empty channel list is valid: the event lives in the feed only.
+		for _, channel := range tmpl.channels {
+			if channel != ChannelEmail {
+				t.Errorf("%s: %q is not a known delivery channel", name, channel)
+			}
 		}
 	}
 }
@@ -84,41 +87,6 @@ func TestPayloadWhenIgnoresUnparseableTime(t *testing.T) {
 	}
 	if got := (payload{}).when(); got != "" {
 		t.Errorf("when() = %q, want empty when absent", got)
-	}
-}
-
-func TestPushDataFlattensPayload(t *testing.T) {
-	id := uuid.New()
-	raw, err := json.Marshal(map[string]any{
-		"booking_id": "abc",
-		"week_index": 3,
-		"is_monthly": true,
-		"nested":     map[string]any{"a": 1},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	data := pushData(db.Notification{ID: id, Type: TypeBookingConfirmed, Payload: raw})
-
-	want := map[string]string{
-		"type":            TypeBookingConfirmed,
-		"notification_id": id.String(),
-		"booking_id":      "abc",
-		"week_index":      "3",
-		"is_monthly":      "true",
-		"nested":          `{"a":1}`,
-	}
-	for key, value := range want {
-		if data[key] != value {
-			t.Errorf("data[%q] = %q, want %q", key, data[key], value)
-		}
-	}
-}
-
-func TestPushDataToleratesBrokenPayload(t *testing.T) {
-	data := pushData(db.Notification{Type: TypeHoldExpired, Payload: []byte("{not json")})
-	if data["type"] != TypeHoldExpired {
-		t.Errorf("type lost: %#v", data)
 	}
 }
 
@@ -267,7 +235,7 @@ func TestRenderOutboxRejectsUnusableMail(t *testing.T) {
 	}
 }
 
-func TestRenderNotificationEmailReusesPushCopy(t *testing.T) {
+func TestRenderNotificationEmailReusesFeedCopy(t *testing.T) {
 	n := db.Notification{
 		ID:    uuid.New(),
 		Type:  TypeBookingConfirmed,

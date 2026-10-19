@@ -79,8 +79,8 @@ WHERE d.id = c.id
 RETURNING d.id, d.notification_id, d.channel, d.status, d.attempts, d.max_attempts, d.next_attempt_at, d.claimed_at, d.last_error, d.created_at, d.updated_at
 `
 
-// Same claim-and-mark shape as the verification queue, so push and email
-// retry independently of each other and of the state change that queued them.
+// Same claim-and-mark shape as the verification queue, so a delivery retries
+// independently of the state change that queued it.
 func (q *Queries) ClaimNotificationDeliveries(ctx context.Context, batchSize int32) ([]NotificationDelivery, error) {
 	rows, err := q.db.Query(ctx, claimNotificationDeliveries, batchSize)
 	if err != nil {
@@ -175,19 +175,6 @@ type CreateNotificationDeliveriesParams struct {
 func (q *Queries) CreateNotificationDeliveries(ctx context.Context, arg CreateNotificationDeliveriesParams) error {
 	_, err := q.db.Exec(ctx, createNotificationDeliveries, arg.NotificationID, arg.Channels)
 	return err
-}
-
-const deleteDeviceToken = `-- name: DeleteDeviceToken :execrows
-DELETE FROM device_tokens WHERE fcm_token = $1
-`
-
-// FCM reported the token as unregistered; drop it (SDD 11.2).
-func (q *Queries) DeleteDeviceToken(ctx context.Context, fcmToken string) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteDeviceToken, fcmToken)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
 }
 
 const enqueueEmail = `-- name: EnqueueEmail :one
@@ -316,37 +303,6 @@ func (q *Queries) ListDeliveryContexts(ctx context.Context, deliveryIds []uuid.U
 			&i.Notification.CreatedAt,
 			&i.UserEmail,
 			&i.UserFullName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listDeviceTokensForUser = `-- name: ListDeviceTokensForUser :many
-SELECT id, user_id, fcm_token, platform, last_seen_at, created_at FROM device_tokens WHERE user_id = $1 ORDER BY last_seen_at DESC
-`
-
-func (q *Queries) ListDeviceTokensForUser(ctx context.Context, userID uuid.UUID) ([]DeviceToken, error) {
-	rows, err := q.db.Query(ctx, listDeviceTokensForUser, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []DeviceToken{}
-	for rows.Next() {
-		var i DeviceToken
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.FcmToken,
-			&i.Platform,
-			&i.LastSeenAt,
-			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -547,34 +503,4 @@ type RescheduleEmailParams struct {
 func (q *Queries) RescheduleEmail(ctx context.Context, arg RescheduleEmailParams) error {
 	_, err := q.db.Exec(ctx, rescheduleEmail, arg.Backoff, arg.LastError, arg.ID)
 	return err
-}
-
-const upsertDeviceToken = `-- name: UpsertDeviceToken :one
-INSERT INTO device_tokens (user_id, fcm_token, platform)
-VALUES ($1, $2, $3)
-ON CONFLICT (fcm_token) DO UPDATE
-SET user_id      = EXCLUDED.user_id,
-    platform     = EXCLUDED.platform,
-    last_seen_at = now()
-RETURNING id, user_id, fcm_token, platform, last_seen_at, created_at
-`
-
-type UpsertDeviceTokenParams struct {
-	UserID   uuid.UUID `json:"user_id"`
-	FcmToken string    `json:"fcm_token"`
-	Platform string    `json:"platform"`
-}
-
-func (q *Queries) UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenParams) (DeviceToken, error) {
-	row := q.db.QueryRow(ctx, upsertDeviceToken, arg.UserID, arg.FcmToken, arg.Platform)
-	var i DeviceToken
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.FcmToken,
-		&i.Platform,
-		&i.LastSeenAt,
-		&i.CreatedAt,
-	)
-	return i, err
 }

@@ -40,6 +40,10 @@ const (
 	ActionUserRoleChanged   = "user.role_changed"
 	ActionUserStatusChanged = "user.status_changed"
 	ActionAdminLogin        = "admin.login"
+	// ActionBookingSettingsUpdated records a change to the platform pricing
+	// policy: a value edit with money behind it, so it belongs in the log even
+	// though no booking row changed.
+	ActionBookingSettingsUpdated = "settings.booking_updated"
 )
 
 // Target types, naming the table the target_id belongs to.
@@ -53,6 +57,10 @@ const (
 	// it is the set of games sharing a games.series_id, so the target id is
 	// that uuid.
 	TargetSeries = "game_series"
+	// TargetSettings names the dashboard-editable platform settings. There is
+	// no uuid to point at — a singleton row — so the target id is the setting
+	// group's name, "booking".
+	TargetSettings = "settings"
 )
 
 // Recorder writes audit entries.

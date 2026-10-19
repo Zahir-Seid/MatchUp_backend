@@ -55,13 +55,12 @@ type BookingParticipant struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-type DeviceToken struct {
-	ID         uuid.UUID `json:"id"`
-	UserID     uuid.UUID `json:"user_id"`
-	FcmToken   string    `json:"fcm_token"`
-	Platform   string    `json:"platform"`
-	LastSeenAt time.Time `json:"last_seen_at"`
-	CreatedAt  time.Time `json:"created_at"`
+type BookingSetting struct {
+	ID                   bool       `json:"id"`
+	MonthlyDiscountBps   int32      `json:"monthly_discount_bps"`
+	MonthlyDiscountLabel string     `json:"monthly_discount_label"`
+	UpdatedBy            *uuid.UUID `json:"updated_by"`
+	UpdatedAt            time.Time  `json:"updated_at"`
 }
 
 type EmailOutbox struct {

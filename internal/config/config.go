@@ -79,9 +79,8 @@ type Config struct {
 	AllowInsecureVerifierTLS bool
 
 	// Notification delivery
-	ResendAPIKey          string
-	ResendFromAddress     string
-	FCMServiceAccountJSON string
+	ResendAPIKey      string
+	ResendFromAddress string
 	// Email copy. The two URLs are the base links a single-use token is
 	// appended to, normally app deep links; left empty, the mail carries the
 	// code alone rather than a link that goes nowhere.
@@ -175,13 +174,12 @@ func Load(need Need) (*Config, error) {
 		VerifyMaxAttempts:        envInt("VERIFY_MAX_ATTEMPTS", 5, fail),
 		AllowInsecureVerifierTLS: envBool("ALLOW_INSECURE_VERIFIER_TLS", false, fail),
 
-		ResendAPIKey:          os.Getenv("RESEND_API_KEY"),
-		ResendFromAddress:     envDefault("RESEND_FROM_ADDRESS", "MatchUp <no-reply@matchup.et>"),
-		FCMServiceAccountJSON: os.Getenv("FCM_SERVICE_ACCOUNT_JSON"),
-		AppName:               envDefault("APP_NAME", "MatchUp"),
-		SupportEmail:          os.Getenv("SUPPORT_EMAIL"),
-		PasswordResetURL:      os.Getenv("PASSWORD_RESET_URL"),
-		EmailVerifyURL:        os.Getenv("EMAIL_VERIFY_URL"),
+		ResendAPIKey:      os.Getenv("RESEND_API_KEY"),
+		ResendFromAddress: envDefault("RESEND_FROM_ADDRESS", "MatchUp <no-reply@matchup.et>"),
+		AppName:           envDefault("APP_NAME", "MatchUp"),
+		SupportEmail:      os.Getenv("SUPPORT_EMAIL"),
+		PasswordResetURL:  os.Getenv("PASSWORD_RESET_URL"),
+		EmailVerifyURL:    os.Getenv("EMAIL_VERIFY_URL"),
 
 		LogLevel:  strings.ToLower(envDefault("LOG_LEVEL", "info")),
 		LogFormat: strings.ToLower(strings.TrimSpace(os.Getenv("LOG_FORMAT"))),
@@ -318,9 +316,6 @@ func Load(need Need) (*Config, error) {
 	if need.Notify && c.AppEnv != EnvLocal {
 		if c.ResendAPIKey == "" {
 			fail("RESEND_API_KEY is required outside local")
-		}
-		if c.FCMServiceAccountJSON == "" {
-			fail("FCM_SERVICE_ACCOUNT_JSON is required outside local")
 		}
 		// A reset mail with no link asks the user to copy a token by hand. It
 		// works, but it is not what should ship to real customers.

@@ -2,8 +2,8 @@
 //
 // Everything that must happen without a request behind it lives here: bank
 // verification of submitted payments, the sweep that releases spots whose hold
-// ran out, push and email delivery, and the reconciliation pass that hands back
-// work abandoned by a process that died holding it.
+// ran out, notification and email delivery, and the reconciliation pass that
+// hands back work abandoned by a process that died holding it.
 //
 // It serves no HTTP. That is deliberate: a bank lookup takes tens of seconds and
 // a delivery batch can stall on a provider, and neither belongs on a request
@@ -74,13 +74,11 @@ func run() error {
 	// caused it. Delivery is the dispatcher's job, further down.
 	notifySvc := notification.NewService(store, log, cfg.ResendAPIKey != "")
 
-	push := pushSender(ctx, cfg, log)
 	email := emailSender(cfg, log)
 
 	dispatcher := notification.NewDispatcher(notification.DispatcherOptions{
 		Store:  store,
 		Logger: log,
-		Push:   push,
 		Email:  email,
 		Brand: notification.Brand{
 			AppName:          cfg.AppName,
@@ -172,29 +170,10 @@ func buildVerifiers(cfg *config.Config, log *slog.Logger) ([]payment.Verifier, e
 	}, nil
 }
 
-// pushSender builds the FCM sender, or returns nil when push is not configured.
-//
-// Nil disables the channel rather than failing it: the dispatcher leaves those
-// deliveries pending, so credentials added later drain the backlog instead of
-// finding it discarded.
-func pushSender(ctx context.Context, cfg *config.Config, log *slog.Logger) notification.PushSender {
-	if cfg.FCMServiceAccountJSON == "" {
-		log.Warn("push delivery disabled: FCM_SERVICE_ACCOUNT_JSON is not set")
-		return nil
-	}
-	sender, err := notification.NewFCMSender(ctx, cfg.FCMServiceAccountJSON)
-	if err != nil {
-		// Config validation already requires the credential outside local, so
-		// reaching here means it is present but unusable. That is worth a loud
-		// line, but not worth refusing to verify payments over.
-		log.Error("push delivery disabled: FCM sender could not be built", slog.Any("error", err))
-		return nil
-	}
-	return sender
-}
-
 // emailSender builds the Resend sender, or returns nil when email is not
-// configured. Same reasoning as pushSender: pending beats failed.
+// configured. A nil sender leaves email deliveries pending rather than failing
+// them, so adding a key later drains the backlog instead of finding it
+// discarded.
 func emailSender(cfg *config.Config, log *slog.Logger) notification.EmailSender {
 	if cfg.ResendAPIKey == "" {
 		log.Warn("email delivery disabled: RESEND_API_KEY is not set")

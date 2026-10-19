@@ -34,7 +34,7 @@ func repeat(g db.Game, n int) []db.Game {
 
 func TestBuildQuoteSingle(t *testing.T) {
 	// 150 ETB per player, two spots, one session: no discount.
-	q, err := buildQuote(TypeSingle, 2, []db.Game{game(15000, 10)})
+	q, err := buildQuote(TypeSingle, 2, []db.Game{game(15000, 10)}, DefaultDiscountPolicy)
 	if err != nil {
 		t.Fatalf("buildQuote: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestBuildQuoteMonthlyMatchesSpecFormula(t *testing.T) {
 	// The relayed spec: total = (4 x price x spots) - (0.5 x price x spots).
 	const price = 15000
 	for _, spots := range []int32{1, 2, 3, 7} {
-		q, err := buildQuote(TypeMonthly4W, spots, repeat(game(price, 10), 4))
+		q, err := buildQuote(TypeMonthly4W, spots, repeat(game(price, 10), 4), DefaultDiscountPolicy)
 		if err != nil {
 			t.Fatalf("buildQuote(%d spots): %v", spots, err)
 		}
@@ -81,7 +81,7 @@ func TestBuildQuoteMonthlyMatchesSpecFormula(t *testing.T) {
 }
 
 func TestBuildQuoteMonthlyWeekIndexesAreSequential(t *testing.T) {
-	q, err := buildQuote(TypeMonthly4W, 1, repeat(game(12000, 10), 4))
+	q, err := buildQuote(TypeMonthly4W, 1, repeat(game(12000, 10), 4), DefaultDiscountPolicy)
 	if err != nil {
 		t.Fatalf("buildQuote: %v", err)
 	}
@@ -101,9 +101,9 @@ func TestBuildQuoteMonthlyWeekIndexesAreSequential(t *testing.T) {
 func TestBuildQuoteMonthlyWithUnevenPrices(t *testing.T) {
 	// Prices are normally uniform across a series, but the schema allows an
 	// admin to edit one week. The subtotal must follow the actual prices, and
-	// the discount is half the average week.
+	// the discount is the configured share of that subtotal.
 	games := []db.Game{game(10000, 10), game(10000, 10), game(20000, 10), game(20000, 10)}
-	q, err := buildQuote(TypeMonthly4W, 1, games)
+	q, err := buildQuote(TypeMonthly4W, 1, games, DefaultDiscountPolicy)
 	if err != nil {
 		t.Fatalf("buildQuote: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestBuildQuoteMonthlyWithUnevenPrices(t *testing.T) {
 		t.Errorf("subtotal = %d, want 60000", q.SubtotalSantim)
 	}
 	if q.DiscountSantim != 7500 {
-		t.Errorf("discount = %d, want 7500 (half of the 15000 average week)", q.DiscountSantim)
+		t.Errorf("discount = %d, want 7500 (12.5%% of the 60000 subtotal)", q.DiscountSantim)
 	}
 	// The stored per-player snapshot is the price of the game the user picked.
 	if q.PricePerPlayerSantim != 10000 {
@@ -119,16 +119,78 @@ func TestBuildQuoteMonthlyWithUnevenPrices(t *testing.T) {
 	}
 }
 
+func TestBuildQuoteMonthlyDiscountPolicy(t *testing.T) {
+	// The discount is whatever the dashboard saved, not a hardcoded half-week:
+	// the rate moves the total, and the label only appears when there is a
+	// deduction to explain.
+	uniform := func() []db.Game { return repeat(game(15000, 10), 4) }
+
+	t.Run("disabled", func(t *testing.T) {
+		// Zero basis points is a valid policy: full price, and the stored
+		// label (still present from earlier edits) must not be shown.
+		q, err := buildQuote(TypeMonthly4W, 2, uniform(), DiscountPolicy{BPS: 0, Label: "stale label"})
+		if err != nil {
+			t.Fatalf("buildQuote: %v", err)
+		}
+		if q.DiscountSantim != 0 {
+			t.Errorf("discount = %d, want 0", q.DiscountSantim)
+		}
+		if q.TotalSantim != q.SubtotalSantim {
+			t.Errorf("total = %d, want subtotal %d", q.TotalSantim, q.SubtotalSantim)
+		}
+		if q.DiscountLabel != "" {
+			t.Errorf("discount label = %q, want empty with no discount", q.DiscountLabel)
+		}
+	})
+
+	t.Run("custom rate", func(t *testing.T) {
+		policy := DiscountPolicy{BPS: 2500, Label: "Festival offer"}
+		q, err := buildQuote(TypeMonthly4W, 2, uniform(), policy)
+		if err != nil {
+			t.Fatalf("buildQuote: %v", err)
+		}
+		// Subtotal 4 x 15000 x 2 = 120000; 25% of it is 30000.
+		if q.DiscountSantim != 30000 {
+			t.Errorf("discount = %d, want 30000", q.DiscountSantim)
+		}
+		if q.DiscountLabel != policy.Label {
+			t.Errorf("discount label = %q, want %q", q.DiscountLabel, policy.Label)
+		}
+	})
+
+	t.Run("rate floors to nothing", func(t *testing.T) {
+		// One basis point of a four-santim subtotal floors to zero, so there
+		// is no deduction and the label must not claim one.
+		q, err := buildQuote(TypeMonthly4W, 1, repeat(game(1, 10), 4), DiscountPolicy{BPS: 1, Label: "noise"})
+		if err != nil {
+			t.Fatalf("buildQuote: %v", err)
+		}
+		if q.DiscountSantim != 0 || q.DiscountLabel != "" {
+			t.Errorf("discount = %d label = %q, want 0 and empty", q.DiscountSantim, q.DiscountLabel)
+		}
+	})
+
+	t.Run("single bookings ignore the policy", func(t *testing.T) {
+		q, err := buildQuote(TypeSingle, 2, []db.Game{game(15000, 10)}, DiscountPolicy{BPS: 5000, Label: "Festival offer"})
+		if err != nil {
+			t.Fatalf("buildQuote: %v", err)
+		}
+		if q.DiscountSantim != 0 || q.DiscountLabel != "" {
+			t.Errorf("discount = %d label = %q, want none on a single booking", q.DiscountSantim, q.DiscountLabel)
+		}
+	})
+}
+
 func TestBuildQuoteRejectsBadInput(t *testing.T) {
-	if _, err := buildQuote(TypeSingle, 1, nil); err == nil {
+	if _, err := buildQuote(TypeSingle, 1, nil, DefaultDiscountPolicy); err == nil {
 		t.Error("expected an error with no games")
 	}
-	if _, err := buildQuote(TypeSingle, 0, []db.Game{game(15000, 10)}); err == nil {
+	if _, err := buildQuote(TypeSingle, 0, []db.Game{game(15000, 10)}, DefaultDiscountPolicy); err == nil {
 		t.Error("expected an error with zero spots")
 	}
 	// A free game would make the monthly discount equal the subtotal, which the
 	// bookings CHECK constraint forbids.
-	if _, err := buildQuote(TypeMonthly4W, 1, repeat(game(0, 10), 4)); err == nil {
+	if _, err := buildQuote(TypeMonthly4W, 1, repeat(game(0, 10), 4), DefaultDiscountPolicy); err == nil {
 		t.Error("expected an error when the discount is not less than the subtotal")
 	}
 }

@@ -27,8 +27,8 @@ RETURNING *;
 -- name: MarkAllNotificationsRead :execrows
 UPDATE notifications SET read_at = now() WHERE user_id = $1 AND read_at IS NULL;
 
--- Same claim-and-mark shape as the verification queue, so push and email
--- retry independently of each other and of the state change that queued them.
+-- Same claim-and-mark shape as the verification queue, so a delivery retries
+-- independently of the state change that queued it.
 -- name: ClaimNotificationDeliveries :many
 WITH claimable AS (
     SELECT id FROM notification_deliveries
@@ -84,22 +84,6 @@ SET status          = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'pen
     claimed_at      = NULL,
     last_error      = 'reclaimed after stalled processing'
 WHERE status = 'processing' AND claimed_at < now() - sqlc.arg(stale_after)::interval;
-
--- name: UpsertDeviceToken :one
-INSERT INTO device_tokens (user_id, fcm_token, platform)
-VALUES ($1, $2, $3)
-ON CONFLICT (fcm_token) DO UPDATE
-SET user_id      = EXCLUDED.user_id,
-    platform     = EXCLUDED.platform,
-    last_seen_at = now()
-RETURNING *;
-
--- name: ListDeviceTokensForUser :many
-SELECT * FROM device_tokens WHERE user_id = $1 ORDER BY last_seen_at DESC;
-
--- FCM reported the token as unregistered; drop it (SDD 11.2).
--- name: DeleteDeviceToken :execrows
-DELETE FROM device_tokens WHERE fcm_token = $1;
 
 -- Transactional email queue. Same claim/retry contract as the other queues.
 
