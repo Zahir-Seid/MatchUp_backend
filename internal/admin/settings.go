@@ -21,7 +21,7 @@ type BookingSettings struct {
 	MonthlyDiscountLabel string     `json:"monthly_discount_label"`
 	UpdatedBy            *uuid.UUID `json:"updated_by,omitempty"`
 	UpdatedAt            time.Time  `json:"updated_at"`
-}
+} //	@name	BookingSettings
 
 func toBookingSettings(row db.BookingSetting) BookingSettings {
 	return BookingSettings{
@@ -117,6 +117,19 @@ func (s *Service) UpdateBookingSettings(ctx context.Context, actor uuid.UUID, pa
 
 // ---- HTTP ----
 
+// getBookingSettings returns the current pricing policy.
+//
+//	@Summary		Get booking settings
+//	@Description	The platform-owned pricing policy: the monthly-plan discount the public API applies to the next quote, so an edit here lands without a deploy.
+//	@Tags			settings
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Success		200	{object}	admin.BookingSettings
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		403	{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/settings/booking [get]
 func (h *Handler) getBookingSettings(w http.ResponseWriter, r *http.Request) error {
 	settings, err := h.svc.GetBookingSettings(r.Context())
 	if err != nil {
@@ -126,12 +139,30 @@ func (h *Handler) getBookingSettings(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
+// updateBookingSettingsRequest edits the pricing policy.
 type updateBookingSettingsRequest struct {
 	MonthlyDiscountBPS   *int32  `json:"monthly_discount_bps"`
 	MonthlyDiscountLabel *string `json:"monthly_discount_label"`
 	Reason               string  `json:"reason"`
-}
+} //	@name	UpdateBookingSettingsRequest
 
+// updateBookingSettings edits the pricing policy.
+//
+//	@Summary		Update booking settings
+//	@Description	A partial update of the monthly-plan discount, in basis points (1250 = 12.5%). A patch that changes nothing answers with the settings as they stand and writes no audit entry. The reason is recorded in the audit log.
+//	@Tags			settings
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		admin.updateBookingSettingsRequest	true	"Members to change"
+//	@Success		200		{object}	admin.BookingSettings
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed, or no changes were given"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/settings/booking [patch]
 func (h *Handler) updateBookingSettings(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {

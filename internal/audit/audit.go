@@ -167,18 +167,18 @@ type View struct {
 	TargetType string          `json:"target_type"`
 	TargetID   string          `json:"target_id"`
 	Reason     *string         `json:"reason,omitempty"`
-	Metadata   json.RawMessage `json:"metadata"`
+	Metadata   json.RawMessage `json:"metadata" swaggertype:"object"`
 	CreatedAt  string          `json:"created_at"`
 	// Actor is absent for system actions.
 	Actor *Actor `json:"actor,omitempty"`
-}
+} //	@name	AuditEntry
 
 // Actor identifies the admin behind an entry.
 type Actor struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
-}
+} //	@name	AuditActor
 
 const timeLayout = "2006-01-02T15:04:05Z07:00"
 

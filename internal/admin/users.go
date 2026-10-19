@@ -29,7 +29,7 @@ type UserView struct {
 	Status          string     `json:"status"`
 	EmailVerifiedAt *time.Time `json:"email_verified_at,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`
-}
+} //	@name	UserView
 
 func toUserView(u db.User) UserView {
 	return UserView{
@@ -218,6 +218,24 @@ func (s *Service) assertNotSelf(actor, target uuid.UUID, what string) error {
 
 // ---- HTTP ----
 
+// listUsers returns accounts newest first (PRD FR29).
+//
+//	@Summary		List users
+//	@Description	One page of accounts, newest first, searchable by name or email and filterable by status.
+//	@Tags			users
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			status	query		string	false	"Filter to one status"	Enums(active, disabled)
+//	@Param			search	query		string	false	"Match the name or email (2-120 characters)"
+//	@Param			limit	query		int		false	"Page size, 1-100 (default 20)"
+//	@Param			offset	query		int		false	"Rows to skip (default 0)"
+//	@Success		200		{object}	admin.Page[admin.UserView]
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/users [get]
 func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request) error {
 	limit, offset, err := parsePagination(r)
 	if err != nil {
@@ -247,6 +265,21 @@ func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// getUser returns one account (PRD FR29).
+//
+//	@Summary		Get a user
+//	@Description	One account as the dashboard shows it. The password hash and OAuth linkage are deliberately absent.
+//	@Tags			users
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			id	path		string	true	"User id (UUID)"
+//	@Success		200	{object}	admin.UserView
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		403	{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		404	{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/users/{id} [get]
 func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) error {
 	id, err := parseIDParam(r, "id")
 	if err != nil {
@@ -260,11 +293,31 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// userStatusRequest is the status change to apply.
 type userStatusRequest struct {
 	Status string `json:"status"`
 	Reason string `json:"reason"`
-}
+} //	@name	UserStatusRequest
 
+// setUserStatus disables or restores an account (PRD FR29).
+//
+//	@Summary		Change a user's status
+//	@Description	Disables or restores an account. Nothing is deleted: erasing an account would orphan its bookings, payments and audit entries, and disabling already stops every use of it. Disabling does not cancel bookings — that is a separate, reasoned action. An admin cannot change their own status.
+//	@Tags			users
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"User id (UUID)"
+//	@Param			body	body		admin.userStatusRequest	true	"Status change"
+//	@Success		200		{object}	admin.UserView
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin, or you are changing your own status"
+//	@Failure		404		{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/users/{id}/status [patch]
 func (h *Handler) setUserStatus(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {
@@ -298,11 +351,31 @@ func (h *Handler) setUserStatus(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// userRoleRequest is the role change to apply.
 type userRoleRequest struct {
 	Role   string `json:"role"`
 	Reason string `json:"reason"`
-}
+} //	@name	UserRoleRequest
 
+// setUserRole grants or revokes admin access (PRD FR29).
+//
+//	@Summary		Change a user's role
+//	@Description	Promotes a player to admin or demotes an admin back. Only an active account can be made an admin, and an admin cannot change their own role. Tokens already issued keep the role they were minted with until they expire; disabling the account is the immediate lever.
+//	@Tags			users
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"User id (UUID)"
+//	@Param			body	body		admin.userRoleRequest	true	"Role change"
+//	@Success		200		{object}	admin.UserView
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin, or you are changing your own role"
+//	@Failure		404		{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/users/{id}/role [patch]
 func (h *Handler) setUserRole(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {

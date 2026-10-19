@@ -153,11 +153,11 @@ type View struct {
 	Type      string          `json:"type"`
 	Title     string          `json:"title"`
 	Body      string          `json:"body"`
-	Payload   json.RawMessage `json:"payload"`
+	Payload   json.RawMessage `json:"payload" swaggertype:"object"`
 	Read      bool            `json:"read"`
 	ReadAt    *string         `json:"read_at,omitempty"`
 	CreatedAt string          `json:"created_at"`
-}
+} //	@name	Notification
 
 func toView(n db.Notification) View {
 	payload := json.RawMessage(n.Payload)

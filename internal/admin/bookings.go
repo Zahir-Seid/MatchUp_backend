@@ -43,7 +43,7 @@ type BookingSummary struct {
 	ConfirmedAt   *time.Time `json:"confirmed_at,omitempty"`
 	CancelledAt   *time.Time `json:"cancelled_at,omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
-}
+} //	@name	BookingSummary
 
 // BookingFilter narrows the admin booking list.
 type BookingFilter struct {
@@ -111,19 +111,19 @@ type BookingDetail struct {
 	Games          []BookedGame         `json:"games"`
 	Participants   []BookingParticipant `json:"participants"`
 	Payments       []AdminPaymentView   `json:"payments"`
-}
+} //	@name	BookingDetail
 
 // BookedGame is one covered session of a booking.
 type BookedGame struct {
 	WeekIndex int32            `json:"week_index"`
 	Game      catalog.GameView `json:"game"`
-}
+} //	@name	BookedGame
 
 // BookingParticipant is one named player on a booking (PRD FR10).
 type BookingParticipant struct {
 	SlotIndex int32  `json:"slot_index"`
 	FullName  string `json:"full_name"`
-}
+} //	@name	BookingParticipant
 
 // AdminPaymentView is a payment with the internal detail an admin may see.
 type AdminPaymentView struct {
@@ -137,12 +137,12 @@ type AdminPaymentView struct {
 	// IdempotencyKey is included because a duplicate submission investigation
 	// starts here: two payments with the same key are one retried request.
 	IdempotencyKey   string          `json:"idempotency_key"`
-	VerifierResult   json.RawMessage `json:"verifier_result"`
+	VerifierResult   json.RawMessage `json:"verifier_result" swaggertype:"object"`
 	ResolvedBy       *uuid.UUID      `json:"resolved_by,omitempty"`
 	ResolvedAt       *time.Time      `json:"resolved_at,omitempty"`
 	ResolutionReason *string         `json:"resolution_reason,omitempty"`
 	CreatedAt        time.Time       `json:"created_at"`
-}
+} //	@name	AdminPaymentView
 
 // GetBooking assembles the full admin view of one booking.
 func (s *Service) GetBooking(ctx context.Context, id uuid.UUID) (*BookingDetail, error) {
@@ -244,7 +244,7 @@ type Cancelled struct {
 	// longer sells anything.
 	GamesCredited int64 `json:"games_credited"`
 	WasPaid       bool  `json:"was_paid"`
-}
+} //	@name	CancelledBooking
 
 // CancelBooking cancels a booking on the customer's behalf and releases its
 // spots (PRD FR27).
@@ -330,6 +330,24 @@ func boolText(b bool) string {
 
 // ---- HTTP ----
 
+// listBookings returns bookings newest first (PRD FR27).
+//
+//	@Summary		List bookings
+//	@Description	Every booking, newest first, searchable by reference code, customer name or email and filterable by status.
+//	@Tags			bookings
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			status	query		string	false	"Filter to one status"	Enums(pending_payment, verifying, pending_review, confirmed, expired, cancelled)
+//	@Param			search	query		string	false	"Match the reference code, customer name or email (2-120 characters)"
+//	@Param			limit	query		int		false	"Page size, 1-100 (default 20)"
+//	@Param			offset	query		int		false	"Rows to skip (default 0)"
+//	@Success		200		{object}	admin.Page[admin.BookingSummary]
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/bookings [get]
 func (h *Handler) listBookings(w http.ResponseWriter, r *http.Request) error {
 	limit, offset, err := parsePagination(r)
 	if err != nil {
@@ -363,6 +381,21 @@ func (h *Handler) listBookings(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// getBooking returns one booking in full.
+//
+//	@Summary		Get a booking
+//	@Description	The booking with its games, participants and every payment attempt — including the raw verifier result and resolution notes, which is what deciding a disputed payment needs.
+//	@Tags			bookings
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			id	path		string	true	"Booking id (UUID)"
+//	@Success		200	{object}	admin.BookingDetail
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		403	{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		404	{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/bookings/{id} [get]
 func (h *Handler) getBooking(w http.ResponseWriter, r *http.Request) error {
 	id, err := parseIDParam(r, "id")
 	if err != nil {
@@ -376,10 +409,31 @@ func (h *Handler) getBooking(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// cancelBookingRequest carries the reason an admin is cancelling.
 type cancelBookingRequest struct {
 	Reason string `json:"reason"`
-}
+} //	@name	CancelBookingRequest
 
+// cancelBooking cancels a booking on the customer's behalf (PRD FR27).
+//
+//	@Summary		Cancel a booking
+//	@Description	Cancels the booking, releases its held spots and tells the customer, with the reason passed through verbatim. No refund is attempted: a booking that was already paid is flagged in the response so the money can be settled off-platform.
+//	@Tags			bookings
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string						true	"Booking id (UUID)"
+//	@Param			body	body		admin.cancelBookingRequest	true	"Cancellation reason"
+//	@Success		200		{object}	admin.Cancelled
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		404		{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		409		{object}	httpx.ErrorEnvelope	"booking_not_cancelable: the booking is already closed"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/bookings/{id}/cancel [post]
 func (h *Handler) cancelBooking(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {

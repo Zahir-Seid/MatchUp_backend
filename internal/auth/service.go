@@ -90,7 +90,7 @@ type TokenPair struct {
 	AccessExpiresAt  time.Time `json:"access_expires_at"`
 	RefreshExpiresAt time.Time `json:"refresh_expires_at"`
 	TokenType        string    `json:"token_type"`
-}
+} //	@name	TokenPair
 
 // SignupInput carries a new account's details. Phone is contact information
 // only and is never used to authenticate.

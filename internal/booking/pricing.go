@@ -54,7 +54,7 @@ type Quote struct {
 	DiscountLabel string `json:"discount_label,omitempty"`
 	// Weeks lists what the money buys, one entry per covered game.
 	Weeks []QuoteWeek `json:"weeks"`
-}
+} //	@name	Quote
 
 // QuoteWeek is one covered game inside a quote.
 type QuoteWeek struct {
@@ -64,7 +64,7 @@ type QuoteWeek struct {
 	PricePerPlayer string `json:"price_per_player"`
 	LineTotal      string `json:"line_total"`
 	SpotsRemaining int32  `json:"spots_remaining"`
-}
+} //	@name	QuoteWeek
 
 // buildQuote prices a booking across the games it will cover.
 //

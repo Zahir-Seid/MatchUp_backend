@@ -7,8 +7,10 @@
 GOBIN      := $(shell go env GOPATH)/bin
 GOOSE      := $(GOBIN)/goose
 SQLC       := $(GOBIN)/sqlc
+SWAG       := $(GOBIN)/swag
 GOOSE_VER  := v3.26.0
 SQLC_VER   := v1.30.0
+SWAG_VER   := v1.16.6
 
 # Overridable: `make migrate-up DATABASE_URL=...`. The default points at the
 # compose Postgres on its host port, not at whatever .env holds -- make does not
@@ -18,7 +20,7 @@ DATABASE_URL ?= postgres://matchup:localdev@localhost:55432/matchup?sslmode=disa
 BINARIES := api admin worker
 
 .DEFAULT_GOAL := help
-.PHONY: help env tools build $(addprefix run-,$(BINARIES)) generate \
+.PHONY: help env tools build $(addprefix run-,$(BINARIES)) generate docs docs-fmt \
         migrate-up migrate-down migrate-redo migrate-status migrate-create \
         test test-race test-integration cover fmt fmt-check vet check tidy \
         docker-build up down logs ps psql clean
@@ -31,9 +33,10 @@ env: ## Create .env from .env.example if it does not exist
 	@test -f .env && echo ".env already exists, leaving it alone" \
 		|| { cp .env.example .env; echo "wrote .env -- replace the placeholder secrets"; }
 
-tools: ## Install the pinned sqlc and goose binaries
+tools: ## Install the pinned sqlc, goose and swag binaries
 	go install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VER)
 	go install github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VER)
+	go install github.com/swaggo/swag/cmd/swag@$(SWAG_VER)
 
 build: ## Build all three binaries into bin/
 	@mkdir -p bin
@@ -50,6 +53,27 @@ run-worker: ## Run the background worker from source
 
 generate: ## Regenerate internal/db from migrations and queries
 	$(SQLC) generate
+
+docs-fmt: ## Format the swag annotations on the handlers
+	$(SWAG) fmt -d ./
+
+docs: ## Regenerate the OpenAPI 3 specs in internal/openapi from handler annotations
+	# Staged under .openapi/ (gitignored): swag emits Swagger 2.0, and the tool
+	# converts it to the OpenAPI 3 documents that are committed under
+	# internal/openapi. The two scans are scoped so neither spec picks up the
+	# other binary's operations: the public API has no admin handlers at all
+	# (directory exclusion), while the admin scan drops every operation tagged
+	# "public", because swag's --exclude has no file granularity. That marker
+	# tag is stripped from the public document again on conversion, so it never
+	# reaches a reader.
+	rm -rf .openapi
+	$(SWAG) init -g cmd/api/main.go -o .openapi/api --ot json --parseInternal --quiet \
+		--exclude ./internal/admin
+	$(SWAG) init -g cmd/admin/main.go -o .openapi/admin --ot json --parseInternal --quiet \
+		--tags "!public"
+	go run ./tools/openapigen -in .openapi/api/swagger.json -out internal/openapi/api.json -server /v1 -strip-tags public
+	go run ./tools/openapigen -in .openapi/admin/swagger.json -out internal/openapi/admin.json -server /admin/v1
+	rm -rf .openapi
 
 migrate-up: ## Apply every pending migration
 	$(GOOSE) -dir migrations postgres "$(DATABASE_URL)" up

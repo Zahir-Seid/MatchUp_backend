@@ -12,21 +12,57 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
 )
 
+// fieldListResponse is the fields page the dashboard renders.
+type fieldListResponse struct {
+	Fields []AdminFieldView `json:"fields"`
+} //	@name	FieldList
+
+// listFields returns every field, active or not (PRD FR25).
+//
+//	@Summary		List fields
+//	@Description	Every field in the catalog, active or retired: the dashboard needs to see what was deactivated in order to bring it back.
+//	@Tags			fields
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Success		200	{object}	admin.fieldListResponse
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		403	{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/fields [get]
 func (h *Handler) listFields(w http.ResponseWriter, r *http.Request) error {
 	fields, err := h.svc.ListFields(r.Context())
 	if err != nil {
 		return err
 	}
-	httpx.JSON(w, r, http.StatusOK, map[string]any{"fields": fields})
+	httpx.JSON(w, r, http.StatusOK, fieldListResponse{Fields: fields})
 	return nil
 }
 
+// createFieldRequest is the field to add.
 type createFieldRequest struct {
 	Name     string  `json:"name"`
 	Location string  `json:"location"`
 	ImageURL *string `json:"image_url"`
-}
+} //	@name	CreateFieldRequest
 
+// createField adds a field to the catalog (PRD FR25).
+//
+//	@Summary		Create a field
+//	@Description	Adds a field to the catalog. The image is a link to externally hosted artwork; this service never stores files.
+//	@Tags			fields
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		admin.createFieldRequest	true	"Field to create"
+//	@Success		201		{object}	admin.AdminFieldView
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/fields [post]
 func (h *Handler) createField(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {
@@ -59,13 +95,33 @@ func (h *Handler) createField(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// updateFieldRequest edits a field. Members left out are unchanged.
 type updateFieldRequest struct {
 	Name     *string `json:"name"`
 	Location *string `json:"location"`
 	ImageURL *string `json:"image_url"`
 	IsActive *bool   `json:"is_active"`
-}
+} //	@name	UpdateFieldRequest
 
+// updateField edits a field or retires it (PRD FR25).
+//
+//	@Summary		Update a field
+//	@Description	A partial update: members left out are unchanged, and an explicit empty image_url clears the image. Deactivating a field only hides it from discovery; its games keep their own schedules.
+//	@Tags			fields
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string						true	"Field id (UUID)"
+//	@Param			body	body		admin.updateFieldRequest	true	"Members to change"
+//	@Success		200		{object}	admin.AdminFieldView
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		404		{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed, or no changes were given"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/fields/{id} [patch]
 func (h *Handler) updateField(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {
@@ -132,6 +188,28 @@ func validateImageURL(v *httpx.Validator, raw *string) *string {
 	return &trimmed
 }
 
+// listGames returns games matching the filter, newest first (PRD FR25).
+//
+//	@Summary		List games
+//	@Description	Games across every field, newest first, with the operational columns the public catalog omits. The time window is half-open: from is inclusive, to exclusive.
+//	@Tags			games
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			field_id	query		string	false	"Only games on this field (UUID)"
+//	@Param			series_id	query		string	false	"Only games in this recurring series (UUID)"
+//	@Param			status		query		string	false	"Only games with this status"	Enums(scheduled, cancelled, completed)
+//	@Param			format		query		string	false	"Only games in this format"		Enums(5_a_side, 7_a_sided)
+//	@Param			from		query		string	false	"Games starting at or after this RFC3339 timestamp"
+//	@Param			to			query		string	false	"Games starting before this RFC3339 timestamp"
+//	@Param			limit		query		int		false	"Page size, 1-100 (default 20)"
+//	@Param			offset		query		int		false	"Rows to skip (default 0)"
+//	@Success		200			{object}	admin.Page[admin.AdminGameView]
+//	@Failure		401			{object}	httpx.ErrorEnvelope
+//	@Failure		403			{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422			{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429			{object}	httpx.ErrorEnvelope
+//	@Failure		500			{object}	httpx.ErrorEnvelope
+//	@Router			/games [get]
 func (h *Handler) listGames(w http.ResponseWriter, r *http.Request) error {
 	limit, offset, err := parsePagination(r)
 	if err != nil {
@@ -194,6 +272,21 @@ func parseOptionalTime(v *httpx.Validator, raw, field string) *time.Time {
 	return &t
 }
 
+// getGame returns one game with its field (PRD FR25).
+//
+//	@Summary		Get a game
+//	@Description	One game, including what the slot costs the business and how many spots are already sold.
+//	@Tags			games
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			id	path		string	true	"Game id (UUID)"
+//	@Success		200	{object}	admin.AdminGameView
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		403	{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		404	{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/games/{id} [get]
 func (h *Handler) getGame(w http.ResponseWriter, r *http.Request) error {
 	id, err := parseIDParam(r, "id")
 	if err != nil {
@@ -207,6 +300,7 @@ func (h *Handler) getGame(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// createGameRequest schedules one game or a weekly series.
 type createGameRequest struct {
 	FieldID  string `json:"field_id"`
 	StartsAt string `json:"starts_at"`
@@ -219,8 +313,32 @@ type createGameRequest struct {
 	// Occurrences > 1 creates a weekly recurring series, which is what makes
 	// the slot bookable monthly.
 	Occurrences int32 `json:"occurrences"`
-}
+} //	@name	CreateGameRequest
 
+// createGameResponse is what the dashboard gets back: the games that were
+// created, and the series id when they belong to a recurring one.
+type createGameResponse struct {
+	Games    []AdminGameView `json:"games"`
+	SeriesID *uuid.UUID      `json:"series_id,omitempty"`
+} //	@name	GameCreation
+
+// createGame schedules a game, or a weekly series when occurrences > 1 (PRD FR25).
+//
+//	@Summary		Create a game
+//	@Description	Schedules one game, or a weekly recurring series of them — the whole series in one transaction. A series is what makes a slot bookable as a monthly plan, so occurrences must be 1 or a full plan's worth.
+//	@Tags			games
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		admin.createGameRequest	true	"Game or series to schedule"
+//	@Success		201		{object}	admin.createGameResponse
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/games [post]
 func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {
@@ -277,22 +395,43 @@ func (h *Handler) createGame(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	response := map[string]any{"games": games}
+	response := createGameResponse{Games: games}
 	if len(games) > 0 && games[0].SeriesID != nil {
-		response["series_id"] = games[0].SeriesID
+		response.SeriesID = games[0].SeriesID
 	}
 	httpx.JSON(w, r, http.StatusCreated, response)
 	return nil
 }
 
+// updateGameRequest edits a scheduled game. Members left out are unchanged.
 type updateGameRequest struct {
 	StartsAt             *string `json:"starts_at"`
 	DurationMinutes      *int32  `json:"duration_minutes"`
 	Format               *string `json:"format"`
 	PricePerPlayerSantim *int64  `json:"price_per_player_santim"`
 	CostToBusinessSantim *int64  `json:"cost_to_business_santim"`
-}
+} //	@name	UpdateGameRequest
 
+// updateGame edits a scheduled game (PRD FR25).
+//
+//	@Summary		Update a game
+//	@Description	A partial update of a scheduled game. A price change applies only to bookings made after it: every booking keeps the price it was sold at. Capacity is not editable here because moving it has to move the free spots with it.
+//	@Tags			games
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"Game id (UUID)"
+//	@Param			body	body		admin.updateGameRequest	true	"Members to change"
+//	@Success		200		{object}	admin.AdminGameView
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		404		{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		409		{object}	httpx.ErrorEnvelope	"game_unavailable: only a scheduled game can be edited"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed, or no changes were given"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/games/{id} [patch]
 func (h *Handler) updateGame(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {
@@ -348,14 +487,35 @@ func (h *Handler) updateGame(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// capacityRequest adjusts how many spots a game sells.
 type capacityRequest struct {
 	// Delta is signed: positive adds bookable spots, negative removes free
 	// ones. An absolute target would be ambiguous about what to do with the
 	// spots already sold.
 	Delta  int32  `json:"delta"`
 	Reason string `json:"reason"`
-}
+} //	@name	AdjustCapacityRequest
 
+// adjustGameCapacity changes a scheduled game's capacity (PRD FR25).
+//
+//	@Summary		Adjust game capacity
+//	@Description	Raises or lowers a scheduled game's capacity by a signed delta, moving the free spots with it. Raising credits the new seats so they become bookable; lowering can only consume spots that are still free. The optional reason is recorded in the audit log.
+//	@Tags			games
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"Game id (UUID)"
+//	@Param			body	body		admin.capacityRequest	true	"Capacity change"
+//	@Success		200		{object}	admin.AdminGameView
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		404		{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		409		{object}	httpx.ErrorEnvelope	"game_unavailable or insufficient_capacity: not enough free spots"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/games/{id}/capacity [post]
 func (h *Handler) adjustGameCapacity(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {
@@ -390,10 +550,31 @@ func (h *Handler) adjustGameCapacity(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
+// cancelGameRequest carries the reason a game is being cancelled.
 type cancelGameRequest struct {
 	Reason string `json:"reason"`
-}
+} //	@name	CancelGameRequest
 
+// cancelGame cancels a scheduled game and tells affected customers (PRD FR25).
+//
+//	@Summary		Cancel a game
+//	@Description	Cancels a scheduled game and notifies everyone holding a live booking on it, with the reason passed through verbatim. Existing bookings are deliberately left alone — a monthly plan spans several games — and the response reports the blast radius so each booking can be settled deliberately.
+//	@Tags			games
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"Game id (UUID)"
+//	@Param			body	body		admin.cancelGameRequest	true	"Cancellation reason"
+//	@Success		200		{object}	admin.GameCancellation
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		404		{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		409		{object}	httpx.ErrorEnvelope	"game_unavailable: only a scheduled game can be cancelled"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/games/{id}/cancel [post]
 func (h *Handler) cancelGame(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {

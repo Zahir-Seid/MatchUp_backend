@@ -40,13 +40,13 @@ type View struct {
 	Games        []BookedGame  `json:"games"`
 	Participants []Participant `json:"participants,omitempty"`
 	Payments     []PaymentView `json:"payments,omitempty"`
-}
+} //	@name	Booking
 
 // BookedGame is one covered session inside a booking.
 type BookedGame struct {
 	WeekIndex int32            `json:"week_index"`
 	Game      catalog.GameView `json:"game"`
-}
+} //	@name	BookedGame
 
 // PaymentView is a submitted payment as the owner may see it. The raw verifier
 // response and the internal resolution notes are deliberately absent.
@@ -59,7 +59,7 @@ type PaymentView struct {
 	VerifiedAmount       *string    `json:"verified_amount,omitempty"`
 	CreatedAt            time.Time  `json:"created_at"`
 	ResolvedAt           *time.Time `json:"resolved_at,omitempty"`
-}
+} //	@name	PaymentView
 
 // Get returns one of the caller's own bookings in full.
 func (s *Service) Get(ctx context.Context, userID, bookingID uuid.UUID) (*View, error) {

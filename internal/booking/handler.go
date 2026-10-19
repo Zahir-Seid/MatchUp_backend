@@ -41,14 +41,32 @@ func (h *Handler) Routes(r chi.Router) {
 	})
 }
 
+// quoteRequest is the selection being priced.
 type quoteRequest struct {
 	GameID      string `json:"game_id"`
 	BookingType string `json:"booking_type"`
 	SpotCount   int32  `json:"spot_count"`
-}
+} //	@name	QuoteRequest
 
 // quote prices a booking without reserving anything (PRD FR11). It is a POST
 // because the body carries the whole selection, not because it changes state.
+//
+//	@Summary		Price a booking
+//	@Description	The full price breakdown for a selection — per-player price, subtotal, monthly discount and the games it would cover — without reserving anything.
+//	@Tags			bookings, public
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		booking.quoteRequest	true	"Selection to price"
+//	@Success		200		{object}	booking.Quote
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		404		{object}	httpx.ErrorEnvelope	"not_found: no such game"
+//	@Failure		409		{object}	httpx.ErrorEnvelope	"game_unavailable or series_incomplete"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/bookings/quote [post]
 func (h *Handler) quote(w http.ResponseWriter, r *http.Request) error {
 	var req quoteRequest
 	if err := httpx.Decode(w, r, &req); err != nil {
@@ -71,20 +89,43 @@ func (h *Handler) quote(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// participantRequest names one reserved spot. slot_index is optional: callers
+// that just list names in order get sequential slots.
 type participantRequest struct {
-	SlotIndex int32  `json:"slot_index"`
+	SlotIndex int32  `json:"slot_index,omitempty"`
 	FullName  string `json:"full_name"`
-}
+} //	@name	ParticipantInput
 
+// createRequest reserves spots and opens the payment hold.
 type createRequest struct {
 	GameID      string `json:"game_id"`
 	BookingType string `json:"booking_type"`
 	SpotCount   int32  `json:"spot_count"`
 	// Participants names some or all of the reserved spots (PRD FR10). Spots
 	// left unnamed are still reserved.
-	Participants []participantRequest `json:"participants"`
-}
+	Participants []participantRequest `json:"participants,omitempty"`
+} //	@name	CreateBookingRequest
 
+// create reserves spots and starts the payment hold (PRD FR9-FR10). It is rate
+// limited: a hold is free to create, so without a limit one account could park
+// every spot on a field and release nothing.
+//
+//	@Summary		Create a booking
+//	@Description	Reserves the requested spots and returns the booking with its hold countdown. A monthly plan covers the next weekly occurrences of the same slot. Spots are released automatically when the hold lapses unpaid.
+//	@Tags			bookings, public
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		booking.createRequest	true	"Reservation to make"
+//	@Success		201		{object}	booking.View
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		404		{object}	httpx.ErrorEnvelope	"not_found: no such game"
+//	@Failure		409		{object}	httpx.ErrorEnvelope	"insufficient_capacity, game_unavailable or series_incomplete"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/bookings [post]
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 	var req createRequest
 	if err := httpx.Decode(w, r, &req); err != nil {
@@ -136,12 +177,29 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// listResponse wraps the caller's bookings page.
 type listResponse struct {
 	Bookings []View `json:"bookings"`
 	Limit    int32  `json:"limit"`
 	Offset   int32  `json:"offset"`
-}
+} //	@name	BookingList
 
+// list returns the caller's own bookings, newest first (PRD FR20).
+//
+//	@Summary		List my bookings
+//	@Description	One page of the caller's bookings, newest first, optionally filtered to a single status.
+//	@Tags			bookings, public
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			status	query		string	false	"Filter to one status"	Enums(pending_payment, verifying, confirmed, pending_review, expired, cancelled)
+//	@Param			limit	query		int		false	"Page size, 1-100 (default 20)"
+//	@Param			offset	query		int		false	"Rows to skip (default 0)"
+//	@Success		200		{object}	booking.listResponse
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed: unknown status or bad paging"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/bookings [get]
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) error {
 	limit, offset, err := catalog.ParsePagination(r)
 	if err != nil {
@@ -173,6 +231,20 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// get returns one of the caller's own bookings in full.
+//
+//	@Summary		Get a booking
+//	@Description	The booking's games, participants and payment attempts. Another account's booking is simply not found.
+//	@Tags			bookings, public
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			id	path		string	true	"Booking id (UUID)"
+//	@Success		200	{object}	booking.View
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		404	{object}	httpx.ErrorEnvelope	"not_found"
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/bookings/{id} [get]
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) error {
 	id, err := catalog.ParseIDParam(r, "id")
 	if err != nil {

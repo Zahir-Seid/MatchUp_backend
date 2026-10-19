@@ -71,7 +71,7 @@ func NewService(opts Options) *Service {
 type Participant struct {
 	SlotIndex int32
 	FullName  string
-}
+} //	@name	Participant
 
 // CreateInput is a booking request.
 type CreateInput struct {

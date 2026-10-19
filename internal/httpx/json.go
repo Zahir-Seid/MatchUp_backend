@@ -117,7 +117,7 @@ func Fail(w http.ResponseWriter, r *http.Request, err error) {
 		w.Header().Set("WWW-Authenticate", `Bearer realm="matchup"`)
 	}
 	w.WriteHeader(apiErr.Status)
-	_ = json.NewEncoder(w).Encode(errorEnvelope{Error: errorBody{
+	_ = json.NewEncoder(w).Encode(ErrorEnvelope{Error: ErrorBody{
 		Code:      apiErr.Code,
 		Message:   apiErr.Message,
 		Fields:    apiErr.Fields,

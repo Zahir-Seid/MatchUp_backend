@@ -98,7 +98,7 @@ type userResponse struct {
 	// HasPassword lets the app hide "change password" for Google-only
 	// accounts rather than offering an action that cannot succeed.
 	HasPassword bool `json:"has_password"`
-}
+} //	@name	User
 
 func toUserResponse(u db.User) userResponse {
 	return userResponse{
@@ -116,57 +116,31 @@ func toUserResponse(u db.User) userResponse {
 type sessionResponse struct {
 	User   userResponse `json:"user"`
 	Tokens *TokenPair   `json:"tokens"`
-}
+} //	@name	Session
 
-type signupRequest struct {
-	FullName string `json:"full_name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Age      *int32 `json:"age"`
-	Phone    string `json:"phone"`
-}
-
-func (h *Handler) signup(w http.ResponseWriter, r *http.Request) error {
-	var req signupRequest
-	if err := httpx.Decode(w, r, &req); err != nil {
-		return err
-	}
-
-	v := httpx.NewValidator()
-	fullName := v.Required("full_name", req.FullName)
-	v.Length("full_name", fullName, 2, 120)
-	email := v.Email("email", req.Email)
-	v.Check(req.Password != "", "password", "required")
-	phone := v.Phone("phone", req.Phone)
-	if req.Age != nil {
-		// Matches the age CHECK on the users table.
-		v.Range("age", int(*req.Age), 10, 120)
-	}
-	if err := v.Err(); err != nil {
-		return err
-	}
-
-	user, pair, err := h.svc.Signup(r.Context(), SignupInput{
-		FullName:  fullName,
-		Email:     email,
-		Password:  req.Password,
-		Age:       req.Age,
-		Phone:     phone,
-		UserAgent: r.UserAgent(),
-	})
-	if err != nil {
-		return err
-	}
-
-	httpx.JSON(w, r, http.StatusCreated, sessionResponse{User: toUserResponse(*user), Tokens: pair})
-	return nil
-}
-
+// loginRequest is the credential body. The same shape signs in to the public
+// API and, with an admin account, to the dashboard.
 type loginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
-}
+} //	@name	LoginRequest
 
+// login authenticates with email and password.
+//
+//	@Summary		Sign in
+//	@Description	Signs in with an email and password and returns a fresh token pair. On the admin API the account must additionally be an admin: correct player credentials are refused with 403.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		auth.loginRequest	true	"Credentials"
+//	@Success		200		{object}	auth.sessionResponse
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope	"invalid_credentials: wrong email or password"
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account may not sign in here"
+//	@Failure		422		{object}	httpx.ErrorEnvelope
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/auth/login [post]
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) error {
 	var req loginRequest
 	if err := httpx.Decode(w, r, &req); err != nil {
@@ -187,33 +161,26 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-type googleRequest struct {
-	IDToken string `json:"id_token"`
-}
-
-func (h *Handler) google(w http.ResponseWriter, r *http.Request) error {
-	var req googleRequest
-	if err := httpx.Decode(w, r, &req); err != nil {
-		return err
-	}
-	v := httpx.NewValidator()
-	v.Check(req.IDToken != "", "id_token", "required")
-	if err := v.Err(); err != nil {
-		return err
-	}
-
-	user, pair, err := h.svc.GoogleSignIn(r.Context(), req.IDToken, r.UserAgent())
-	if err != nil {
-		return err
-	}
-	httpx.JSON(w, r, http.StatusOK, sessionResponse{User: toUserResponse(*user), Tokens: pair})
-	return nil
-}
-
+// refreshRequest carries the refresh token being exchanged or revoked.
 type refreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
-}
+} //	@name	RefreshRequest
 
+// refresh rotates a session (PRD FR3).
+//
+//	@Summary		Refresh a session
+//	@Description	Exchanges a refresh token for a new token pair. Refresh tokens are single-use: replaying one that was already rotated revokes the whole session family and answers 401.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		auth.refreshRequest	true	"Refresh token"
+//	@Success		200		{object}	auth.TokenPair
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope	"token_expired or token_reused"
+//	@Failure		422		{object}	httpx.ErrorEnvelope
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/auth/refresh [post]
 func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) error {
 	var req refreshRequest
 	if err := httpx.Decode(w, r, &req); err != nil {
@@ -231,6 +198,20 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// logout revokes the session a refresh token belongs to.
+//
+//	@Summary		Sign out
+//	@Description	Revokes the session behind the refresh token. Revoking a session that is already dead is not an error.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body	auth.refreshRequest	true	"Refresh token"
+//	@Success		204
+//	@Failure		400	{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		422	{object}	httpx.ErrorEnvelope
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/auth/logout [post]
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) error {
 	var req refreshRequest
 	if err := httpx.Decode(w, r, &req); err != nil {
@@ -246,6 +227,18 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// logoutAll revokes every session the account has (PRD FR3).
+//
+//	@Summary		Sign out everywhere
+//	@Description	Revokes every refresh token issued to the caller, on every device.
+//	@Tags			account
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Success		204
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/auth/logout-all [post]
 func (h *Handler) logoutAll(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {
@@ -258,60 +251,29 @@ func (h *Handler) logoutAll(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-type resetRequestBody struct {
-	Email string `json:"email"`
-}
-
-func (h *Handler) requestReset(w http.ResponseWriter, r *http.Request) error {
-	var req resetRequestBody
-	if err := httpx.Decode(w, r, &req); err != nil {
-		return err
-	}
-	v := httpx.NewValidator()
-	email := v.Email("email", req.Email)
-	if err := v.Err(); err != nil {
-		return err
-	}
-	if err := h.svc.RequestPasswordReset(r.Context(), email); err != nil {
-		return err
-	}
-	// Always the same response, whether or not the address is registered.
-	httpx.JSON(w, r, http.StatusAccepted, map[string]string{
-		"message": "If that address has an account, a reset link is on its way.",
-	})
-	return nil
-}
-
-type resetConfirmBody struct {
-	Token    string `json:"token"`
-	Password string `json:"password"`
-}
-
-func (h *Handler) confirmReset(w http.ResponseWriter, r *http.Request) error {
-	var req resetConfirmBody
-	if err := httpx.Decode(w, r, &req); err != nil {
-		return err
-	}
-	v := httpx.NewValidator()
-	v.Check(req.Token != "", "token", "required")
-	v.Check(req.Password != "", "password", "required")
-	if err := v.Err(); err != nil {
-		return err
-	}
-	if err := h.svc.ResetPassword(r.Context(), req.Token, req.Password); err != nil {
-		return err
-	}
-	httpx.JSON(w, r, http.StatusOK, map[string]string{
-		"message": "Your password has been changed. Please sign in again.",
-	})
-	return nil
-}
-
+// changePasswordBody is the self-service password change.
 type changePasswordBody struct {
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
-}
+} //	@name	ChangePasswordRequest
 
+// changePassword replaces the caller's password.
+//
+//	@Summary		Change password
+//	@Description	Sets a new password and returns a fresh token pair. Other sessions are revoked; the returned pair is the one that keeps working. 409 when the account signs in with Google and has no password to change.
+//	@Tags			account
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		auth.changePasswordBody	true	"Current and new password"
+//	@Success		200		{object}	auth.TokenPair
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		409		{object}	httpx.ErrorEnvelope	"conflict: this account has no password yet"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed: current password incorrect, or the new one is too weak"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/auth/password/change [post]
 func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {
@@ -336,6 +298,18 @@ func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// me returns the signed-in account.
+//
+//	@Summary		Get my account
+//	@Description	The caller's own account, as the app renders it.
+//	@Tags			account
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Success		200	{object}	auth.userResponse
+//	@Failure		401	{object}	httpx.ErrorEnvelope	"The token is invalid, or the account no longer exists"
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/me [get]
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {

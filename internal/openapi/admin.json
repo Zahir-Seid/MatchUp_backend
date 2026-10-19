@@ -1,0 +1,4650 @@
+{
+  "components": {
+    "schemas": {
+      "AdjustCapacityRequest": {
+        "properties": {
+          "delta": {
+            "description": "Delta is signed: positive adds bookable spots, negative removes free\nones. An absolute target would be ambiguous about what to do with the\nspots already sold.",
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AdminFieldView": {
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "location": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AdminGameView": {
+        "properties": {
+          "capacity": {
+            "type": "integer"
+          },
+          "cost_to_business": {
+            "type": "string"
+          },
+          "cost_to_business_santim": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "duration_minutes": {
+            "type": "integer"
+          },
+          "ends_at": {
+            "type": "string"
+          },
+          "field": {
+            "$ref": "#/components/schemas/Field"
+          },
+          "format": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_full": {
+            "type": "boolean"
+          },
+          "is_recurring": {
+            "type": "boolean"
+          },
+          "price_per_player": {
+            "type": "string"
+          },
+          "price_per_player_santim": {
+            "description": "Santim values travel alongside the formatted strings so the client can\ncompute totals without parsing display text.",
+            "type": "integer"
+          },
+          "series_id": {
+            "type": "string"
+          },
+          "spots_remaining": {
+            "type": "integer"
+          },
+          "spots_taken": {
+            "type": "integer"
+          },
+          "starts_at": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AdminGameViewPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminGameView"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "AdminPaymentView": {
+        "properties": {
+          "account_suffix": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "expected_amount": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "IdempotencyKey is included because a duplicate submission investigation\nstarts here: two payments with the same key are one retried request.",
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "resolution_reason": {
+            "type": "string"
+          },
+          "resolved_at": {
+            "type": "string"
+          },
+          "resolved_by": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "transaction_reference": {
+            "type": "string"
+          },
+          "verified_amount": {
+            "type": "string"
+          },
+          "verifier_result": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "AuditActor": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AuditEntry": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuditActor"
+              }
+            ],
+            "description": "Actor is absent for system actions."
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AuditPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "BookedGame": {
+        "properties": {
+          "game": {
+            "$ref": "#/components/schemas/Game"
+          },
+          "week_index": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "BookingDetail": {
+        "properties": {
+          "booking_type": {
+            "type": "string"
+          },
+          "cancelled_at": {
+            "type": "string"
+          },
+          "confirmed_at": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "discount": {
+            "type": "string"
+          },
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/BookedGame"
+            },
+            "type": "array"
+          },
+          "hold_expires_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/BookingParticipant"
+            },
+            "type": "array"
+          },
+          "payment_count": {
+            "description": "PaymentCount tells an admin at a glance whether the customer has\nsubmitted anything at all, which is the difference between chasing them\nand chasing the bank.",
+            "type": "integer"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPaymentView"
+            },
+            "type": "array"
+          },
+          "price_per_player": {
+            "type": "string"
+          },
+          "reference_code": {
+            "type": "string"
+          },
+          "spot_count": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "subtotal": {
+            "type": "string"
+          },
+          "total": {
+            "type": "string"
+          },
+          "total_santim": {
+            "type": "integer"
+          },
+          "user_email": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "user_phone": {
+            "type": "string"
+          },
+          "week_count": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "BookingParticipant": {
+        "properties": {
+          "full_name": {
+            "type": "string"
+          },
+          "slot_index": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "BookingSettings": {
+        "properties": {
+          "monthly_discount_bps": {
+            "type": "integer"
+          },
+          "monthly_discount_label": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BookingSummary": {
+        "properties": {
+          "booking_type": {
+            "type": "string"
+          },
+          "cancelled_at": {
+            "type": "string"
+          },
+          "confirmed_at": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "hold_expires_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "payment_count": {
+            "description": "PaymentCount tells an admin at a glance whether the customer has\nsubmitted anything at all, which is the difference between chasing them\nand chasing the bank.",
+            "type": "integer"
+          },
+          "reference_code": {
+            "type": "string"
+          },
+          "spot_count": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "total": {
+            "type": "string"
+          },
+          "total_santim": {
+            "type": "integer"
+          },
+          "user_email": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "week_count": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "BookingSummaryPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BookingSummary"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "CancelBookingRequest": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CancelGameRequest": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CancelledBooking": {
+        "properties": {
+          "booking_id": {
+            "type": "string"
+          },
+          "games_credited": {
+            "description": "GamesCredited is how many games had spots returned. A booking on a game\nthat was itself cancelled credits nothing, which is correct: that game no\nlonger sells anything.",
+            "type": "integer"
+          },
+          "reference_code": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "was_paid": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "ChangePasswordRequest": {
+        "properties": {
+          "current_password": {
+            "type": "string"
+          },
+          "new_password": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CreateFieldRequest": {
+        "properties": {
+          "image_url": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CreateGameRequest": {
+        "properties": {
+          "capacity": {
+            "type": "integer"
+          },
+          "cost_to_business_santim": {
+            "type": "integer"
+          },
+          "duration_minutes": {
+            "description": "DurationMinutes defaults to 60, matching the column default.",
+            "type": "integer"
+          },
+          "field_id": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "occurrences": {
+            "description": "Occurrences \u003e 1 creates a weekly recurring series, which is what makes\nthe slot bookable monthly.",
+            "type": "integer"
+          },
+          "price_per_player_santim": {
+            "type": "integer"
+          },
+          "starts_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DailyVolume": {
+        "properties": {
+          "bookings_created": {
+            "type": "integer"
+          },
+          "cancelled": {
+            "type": "integer"
+          },
+          "confirmed": {
+            "type": "integer"
+          },
+          "confirmed_revenue": {
+            "type": "string"
+          },
+          "confirmed_revenue_santim": {
+            "type": "integer"
+          },
+          "day": {
+            "type": "string"
+          },
+          "expired": {
+            "type": "integer"
+          },
+          "pending_review": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "DailyVolumeReport": {
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/DailyVolume"
+            },
+            "type": "array"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorCode": {
+        "enum": [
+          "bad_request",
+          "validation_failed",
+          "not_found",
+          "conflict",
+          "rate_limited",
+          "internal_error",
+          "service_unavailable",
+          "unsupported_media_type",
+          "payload_too_large",
+          "unauthorized",
+          "forbidden",
+          "invalid_credentials",
+          "email_in_use",
+          "token_expired",
+          "token_reused",
+          "account_disabled",
+          "insufficient_capacity",
+          "game_unavailable",
+          "series_incomplete",
+          "hold_expired",
+          "booking_not_pending",
+          "booking_not_cancelable",
+          "payment_reference_reused",
+          "payment_mismatch",
+          "payment_not_found",
+          "account_suffix_required",
+          "idempotency_key_conflict",
+          "verifier_unavailable"
+        ],
+        "type": "string",
+        "x-enum-varnames": [
+          "CodeBadRequest",
+          "CodeValidation",
+          "CodeNotFound",
+          "CodeConflict",
+          "CodeRateLimited",
+          "CodeInternal",
+          "CodeUnavailable",
+          "CodeUnsupported",
+          "CodePayloadTooBig",
+          "CodeUnauthorized",
+          "CodeForbidden",
+          "CodeInvalidCredential",
+          "CodeEmailInUse",
+          "CodeTokenExpired",
+          "CodeTokenReused",
+          "CodeAccountDisabled",
+          "CodeInsufficientCapacity",
+          "CodeGameUnavailable",
+          "CodeSeriesIncomplete",
+          "CodeHoldExpired",
+          "CodeBookingNotPending",
+          "CodeBookingNotCancelable",
+          "CodePaymentReferenceReused",
+          "CodePaymentMismatch",
+          "CodePaymentNotFound",
+          "CodeSuffixRequired",
+          "CodeIdempotencyConflict",
+          "CodeVerifierUnavailable"
+        ]
+      },
+      "ErrorEnvelope": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "type": "object"
+      },
+      "Field": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FieldCancellation": {
+        "properties": {
+          "abandoned_after_confirm": {
+            "description": "AbandonedAfterConfirm counts bookings that were paid for and then\ncancelled. It is the closest honest proxy for a no-show, because nothing\nin this system records attendance -- the dashboard must label it as what\nit is rather than as players failing to turn up.",
+            "type": "integer"
+          },
+          "bookings": {
+            "type": "integer"
+          },
+          "cancellation_rate": {
+            "type": "number"
+          },
+          "cancelled": {
+            "type": "integer"
+          },
+          "confirmed": {
+            "type": "integer"
+          },
+          "expired": {
+            "type": "integer"
+          },
+          "expiry_rate": {
+            "type": "number"
+          },
+          "field_id": {
+            "type": "string"
+          },
+          "field_name": {
+            "type": "string"
+          },
+          "refundable": {
+            "type": "string"
+          },
+          "refundable_santim": {
+            "type": "integer"
+          },
+          "spots_returned": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "FieldCancellationReport": {
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/FieldCancellation"
+            },
+            "type": "array"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FieldList": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/AdminFieldView"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "FieldRevenue": {
+        "properties": {
+          "bookings": {
+            "type": "integer"
+          },
+          "cost": {
+            "type": "string"
+          },
+          "cost_complete": {
+            "type": "boolean"
+          },
+          "cost_santim": {
+            "type": "integer"
+          },
+          "field_id": {
+            "type": "string"
+          },
+          "field_name": {
+            "type": "string"
+          },
+          "margin": {
+            "type": "string"
+          },
+          "margin_santim": {
+            "type": "integer"
+          },
+          "revenue": {
+            "type": "string"
+          },
+          "revenue_santim": {
+            "type": "integer"
+          },
+          "spots_sold": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Game": {
+        "properties": {
+          "capacity": {
+            "type": "integer"
+          },
+          "duration_minutes": {
+            "type": "integer"
+          },
+          "ends_at": {
+            "type": "string"
+          },
+          "field": {
+            "$ref": "#/components/schemas/Field"
+          },
+          "format": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_full": {
+            "type": "boolean"
+          },
+          "is_recurring": {
+            "type": "boolean"
+          },
+          "price_per_player": {
+            "type": "string"
+          },
+          "price_per_player_santim": {
+            "description": "Santim values travel alongside the formatted strings so the client can\ncompute totals without parsing display text.",
+            "type": "integer"
+          },
+          "series_id": {
+            "type": "string"
+          },
+          "spots_remaining": {
+            "type": "integer"
+          },
+          "starts_at": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "GameCancellation": {
+        "properties": {
+          "affected_bookings": {
+            "description": "AffectedBookings is how many live bookings covered this game. Their\nowners have been notified; the bookings themselves are untouched.",
+            "type": "integer"
+          },
+          "affected_spots": {
+            "description": "AffectedSpots is the number of player spots across those bookings.",
+            "type": "integer"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "paid_bookings": {
+            "description": "PaidBookings is how many of them were already paid for, which is the\nnumber a person now has to settle a refund with.",
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "GameCreation": {
+        "properties": {
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/AdminGameView"
+            },
+            "type": "array"
+          },
+          "series_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MethodStats": {
+        "properties": {
+          "approved_by_admin": {
+            "type": "integer"
+          },
+          "auto_verified": {
+            "type": "integer"
+          },
+          "automation_rate": {
+            "description": "AutomationRate is the share of this method's decided payments that\ncleared without a human, as a fraction from 0 to 1.",
+            "type": "number"
+          },
+          "awaiting_review": {
+            "type": "integer"
+          },
+          "collected": {
+            "type": "string"
+          },
+          "collected_santim": {
+            "type": "integer"
+          },
+          "method": {
+            "type": "string"
+          },
+          "rejected": {
+            "type": "integer"
+          },
+          "submissions": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "MethodStatsReport": {
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/MethodStats"
+            },
+            "type": "array"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PaymentResolution": {
+        "properties": {
+          "booking_id": {
+            "type": "string"
+          },
+          "booking_status": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "payment_status": {
+            "type": "string"
+          },
+          "reference_code": {
+            "type": "string"
+          },
+          "spots_released": {
+            "description": "SpotsReleased is set on a rejection, reporting how many games had their\ncapacity credited back.",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PaymentReviewItem": {
+        "properties": {
+          "account_suffix": {
+            "description": "AccountSuffix is the payer's own account tail, present only for CBE.",
+            "type": "string"
+          },
+          "booking_id": {
+            "type": "string"
+          },
+          "booking_total": {
+            "type": "string"
+          },
+          "booking_type": {
+            "type": "string"
+          },
+          "expected_amount": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "payer_email": {
+            "type": "string"
+          },
+          "payer_name": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "reference_code": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "submitted_at": {
+            "type": "string"
+          },
+          "transaction_reference": {
+            "type": "string"
+          },
+          "verified_amount": {
+            "type": "string"
+          },
+          "verifier_result": {
+            "description": "VerifierResult is the decision trail written by the worker: the outcome,\nthe payee check, the reasons, and the bank's own response verbatim. This\nis the evidence the decision rests on, so it is passed through unedited\nrather than summarized.",
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "PaymentReviewItemPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentReviewItem"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "RefreshRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ResolvePaymentRequest": {
+        "properties": {
+          "decision": {
+            "description": "Decision is \"approve\" or \"reject\". A named decision beats a boolean in a\nJSON body: \"approved\": false is far too easy to send by accident.",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RevenueReport": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldRevenue"
+            },
+            "type": "array"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/RevenueTotals"
+          }
+        },
+        "type": "object"
+      },
+      "RevenueTotals": {
+        "properties": {
+          "bookings": {
+            "type": "integer"
+          },
+          "cost": {
+            "type": "string"
+          },
+          "cost_complete": {
+            "type": "boolean"
+          },
+          "cost_santim": {
+            "type": "integer"
+          },
+          "margin": {
+            "type": "string"
+          },
+          "margin_santim": {
+            "type": "integer"
+          },
+          "revenue": {
+            "type": "string"
+          },
+          "revenue_santim": {
+            "type": "integer"
+          },
+          "spots_sold": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Session": {
+        "properties": {
+          "tokens": {
+            "$ref": "#/components/schemas/TokenPair"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "type": "object"
+      },
+      "SlotDemand": {
+        "properties": {
+          "bookings": {
+            "type": "integer"
+          },
+          "day_name": {
+            "type": "string"
+          },
+          "hour_of_day": {
+            "type": "integer"
+          },
+          "iso_day_of_week": {
+            "type": "integer"
+          },
+          "spots_sold": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "SlotDemandReport": {
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SlotDemand"
+            },
+            "type": "array"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TokenPair": {
+        "properties": {
+          "access_expires_at": {
+            "type": "string"
+          },
+          "access_token": {
+            "type": "string"
+          },
+          "refresh_expires_at": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateBookingSettingsRequest": {
+        "properties": {
+          "monthly_discount_bps": {
+            "type": "integer"
+          },
+          "monthly_discount_label": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateFieldRequest": {
+        "properties": {
+          "image_url": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "location": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateGameRequest": {
+        "properties": {
+          "cost_to_business_santim": {
+            "type": "integer"
+          },
+          "duration_minutes": {
+            "type": "integer"
+          },
+          "format": {
+            "type": "string"
+          },
+          "price_per_player_santim": {
+            "type": "integer"
+          },
+          "starts_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "User": {
+        "properties": {
+          "age": {
+            "type": "integer"
+          },
+          "email": {
+            "type": "string"
+          },
+          "email_verified": {
+            "type": "boolean"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "has_password": {
+            "description": "HasPassword lets the app hide \"change password\" for Google-only\naccounts rather than offering an action that cannot succeed.",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserRoleRequest": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserStatusRequest": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserView": {
+        "properties": {
+          "age": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "email_verified_at": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserViewPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserView"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "VerificationReport": {
+        "properties": {
+          "auto_verified": {
+            "type": "integer"
+          },
+          "automation_rate": {
+            "description": "AutomationRate excludes payments still awaiting their first verification\nattempt from the denominator. They have no outcome yet, and counting them\nas manual work would make the metric dip every time the queue grows\nrather than when automation actually degrades.",
+            "type": "number"
+          },
+          "from": {
+            "type": "string"
+          },
+          "needed_review": {
+            "type": "integer"
+          },
+          "still_pending": {
+            "type": "integer"
+          },
+          "to": {
+            "type": "string"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "bearerFormat": "JWT",
+        "description": "Admin access token from /auth/login, sent as `Bearer \u003ctoken\u003e`.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "Dashboard operations for staff: the payment review queue, bookings, fields and games, users, platform settings, reports and the audit log.\nEvery operation requires an admin access token; a player's token is refused with 403, and tokens minted for the public API are not accepted here.",
+    "title": "MatchUp Admin API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/audit-logs": {
+      "get": {
+        "description": "The append-only record of admin actions. action and target_type are matched exactly against historical names, so a renamed action stays searchable. There is no total: the client pages until a short page comes back.",
+        "parameters": [
+          {
+            "description": "Only entries made by this admin (UUID)",
+            "in": "query",
+            "name": "actor_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this action name (2-64 characters)",
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this target type (2-64 characters)",
+            "in": "query",
+            "name": "target_type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1-100 (default 20)",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0)",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List the audit log",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "Signs in with an email and password and returns a fresh token pair. On the admin API the account must additionally be an admin: correct player credentials are refused with 403.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "description": "Credentials",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "invalid_credentials: wrong email or password"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account may not sign in here"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Sign in",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "Revokes the session behind the refresh token. Revoking a session that is already dead is not an error.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "description": "Refresh token",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Sign out",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout-all": {
+      "post": {
+        "description": "Revokes every refresh token issued to the caller, on every device.",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Sign out everywhere",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/auth/password/change": {
+      "post": {
+        "description": "Sets a new password and returns a fresh token pair. Other sessions are revoked; the returned pair is the one that keeps working. 409 when the account signs in with Google and has no password to change.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "description": "Current and new password",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "conflict: this account has no password yet"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed: current password incorrect, or the new one is too weak"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Change password",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "description": "Exchanges a refresh token for a new token pair. Refresh tokens are single-use: replaying one that was already rotated revokes the whole session family and answers 401.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "description": "Refresh token",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "token_expired or token_reused"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Refresh a session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/bookings": {
+      "get": {
+        "description": "Every booking, newest first, searchable by reference code, customer name or email and filterable by status.",
+        "parameters": [
+          {
+            "description": "Filter to one status",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "enum": [
+                "pending_payment",
+                "verifying",
+                "pending_review",
+                "confirmed",
+                "expired",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match the reference code, customer name or email (2-120 characters)",
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1-100 (default 20)",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0)",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingSummaryPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List bookings",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/bookings/{id}": {
+      "get": {
+        "description": "The booking with its games, participants and every payment attempt — including the raw verifier result and resolution notes, which is what deciding a disputed payment needs.",
+        "parameters": [
+          {
+            "description": "Booking id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingDetail"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get a booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/bookings/{id}/cancel": {
+      "post": {
+        "description": "Cancels the booking, releases its held spots and tells the customer, with the reason passed through verbatim. No refund is attempted: a booking that was already paid is flagged in the response so the money can be settled off-platform.",
+        "parameters": [
+          {
+            "description": "Booking id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelBookingRequest"
+              }
+            }
+          },
+          "description": "Cancellation reason",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelledBooking"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "booking_not_cancelable: the booking is already closed"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Cancel a booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/fields": {
+      "get": {
+        "description": "Every field in the catalog, active or retired: the dashboard needs to see what was deactivated in order to bring it back.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List fields",
+        "tags": [
+          "fields"
+        ]
+      },
+      "post": {
+        "description": "Adds a field to the catalog. The image is a link to externally hosted artwork; this service never stores files.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFieldRequest"
+              }
+            }
+          },
+          "description": "Field to create",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminFieldView"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create a field",
+        "tags": [
+          "fields"
+        ]
+      }
+    },
+    "/fields/{id}": {
+      "patch": {
+        "description": "A partial update: members left out are unchanged, and an explicit empty image_url clears the image. Deactivating a field only hides it from discovery; its games keep their own schedules.",
+        "parameters": [
+          {
+            "description": "Field id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFieldRequest"
+              }
+            }
+          },
+          "description": "Members to change",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminFieldView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed, or no changes were given"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Update a field",
+        "tags": [
+          "fields"
+        ]
+      }
+    },
+    "/games": {
+      "get": {
+        "description": "Games across every field, newest first, with the operational columns the public catalog omits. The time window is half-open: from is inclusive, to exclusive.",
+        "parameters": [
+          {
+            "description": "Only games on this field (UUID)",
+            "in": "query",
+            "name": "field_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only games in this recurring series (UUID)",
+            "in": "query",
+            "name": "series_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only games with this status",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "enum": [
+                "scheduled",
+                "cancelled",
+                "completed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only games in this format",
+            "in": "query",
+            "name": "format",
+            "schema": {
+              "enum": [
+                "5_a_side",
+                "7_a_sided"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Games starting at or after this RFC3339 timestamp",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Games starting before this RFC3339 timestamp",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1-100 (default 20)",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0)",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminGameViewPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List games",
+        "tags": [
+          "games"
+        ]
+      },
+      "post": {
+        "description": "Schedules one game, or a weekly recurring series of them — the whole series in one transaction. A series is what makes a slot bookable as a monthly plan, so occurrences must be 1 or a full plan's worth.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGameRequest"
+              }
+            }
+          },
+          "description": "Game or series to schedule",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCreation"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create a game",
+        "tags": [
+          "games"
+        ]
+      }
+    },
+    "/games/{id}": {
+      "get": {
+        "description": "One game, including what the slot costs the business and how many spots are already sold.",
+        "parameters": [
+          {
+            "description": "Game id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminGameView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get a game",
+        "tags": [
+          "games"
+        ]
+      },
+      "patch": {
+        "description": "A partial update of a scheduled game. A price change applies only to bookings made after it: every booking keeps the price it was sold at. Capacity is not editable here because moving it has to move the free spots with it.",
+        "parameters": [
+          {
+            "description": "Game id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGameRequest"
+              }
+            }
+          },
+          "description": "Members to change",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminGameView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "game_unavailable: only a scheduled game can be edited"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed, or no changes were given"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Update a game",
+        "tags": [
+          "games"
+        ]
+      }
+    },
+    "/games/{id}/cancel": {
+      "post": {
+        "description": "Cancels a scheduled game and notifies everyone holding a live booking on it, with the reason passed through verbatim. Existing bookings are deliberately left alone — a monthly plan spans several games — and the response reports the blast radius so each booking can be settled deliberately.",
+        "parameters": [
+          {
+            "description": "Game id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelGameRequest"
+              }
+            }
+          },
+          "description": "Cancellation reason",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCancellation"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "game_unavailable: only a scheduled game can be cancelled"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Cancel a game",
+        "tags": [
+          "games"
+        ]
+      }
+    },
+    "/games/{id}/capacity": {
+      "post": {
+        "description": "Raises or lowers a scheduled game's capacity by a signed delta, moving the free spots with it. Raising credits the new seats so they become bookable; lowering can only consume spots that are still free. The optional reason is recorded in the audit log.",
+        "parameters": [
+          {
+            "description": "Game id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdjustCapacityRequest"
+              }
+            }
+          },
+          "description": "Capacity change",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminGameView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "game_unavailable or insufficient_capacity: not enough free spots"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Adjust game capacity",
+        "tags": [
+          "games"
+        ]
+      }
+    },
+    "/me": {
+      "get": {
+        "description": "The caller's own account, as the app renders it.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The token is invalid, or the account no longer exists"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get my account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/payments/review-queue": {
+      "get": {
+        "description": "Payments automatic verification could not settle, oldest first: a customer whose money is in limbo has been waiting longest.",
+        "parameters": [
+          {
+            "description": "Page size, 1-100 (default 20)",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0)",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentReviewItemPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed: bad paging"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List the payment review queue",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/payments/{id}/resolve": {
+      "post": {
+        "description": "Approving confirms the booking; rejecting cancels it and releases the held spots. The reason is mandatory and is passed to the customer verbatim. A payment that left the queue while the screen was open is a conflict.",
+        "parameters": [
+          {
+            "description": "Payment id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolvePaymentRequest"
+              }
+            }
+          },
+          "description": "Decision",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResolution"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "conflict: that payment is no longer awaiting review"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Resolve a queued payment",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/reports/bookings": {
+      "get": {
+        "description": "Bookings created per day with how they ended up. Status counts are the bookings' current status, not their status on that day, which is what makes each row answer \"of the bookings taken that day, how many stuck\".",
+        "parameters": [
+          {
+            "description": "Window start, RFC3339 (defaults to 30 days before to)",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyVolumeReport"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Booking volume report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/cancellations": {
+      "get": {
+        "description": "Cancellation and expiry pressure per field, with the refundable amount. abandoned_after_confirm counts bookings that were paid for and then cancelled — the closest honest proxy for a no-show, since attendance is not recorded.",
+        "parameters": [
+          {
+            "description": "Window start, RFC3339 (defaults to 30 days before to)",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldCancellationReport"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Cancellations report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/payment-methods": {
+      "get": {
+        "description": "How much each method collects and how much manual review it generates. A method that needs a human on every submission is a verifier problem. Automation rate is the share of that method's decided payments that cleared without a human, 0 to 1.",
+        "parameters": [
+          {
+            "description": "Window start, RFC3339 (defaults to 30 days before to)",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MethodStatsReport"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Payment methods report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/revenue": {
+      "get": {
+        "description": "Confirmed revenue per field over the window, read against confirmation time: revenue belongs to the day the money was accepted. Margin is omitted rather than zero when any covered game is missing its cost.",
+        "parameters": [
+          {
+            "description": "Window start, RFC3339 (defaults to 30 days before to)",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevenueReport"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Revenue report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/slots": {
+      "get": {
+        "description": "Which weekday/hour slots actually sell, busiest first. The window is read against the game's start time rather than the booking's creation: the question is which slots to schedule, not when people browse.",
+        "parameters": [
+          {
+            "description": "Window start, RFC3339 (defaults to 30 days before to)",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlotDemandReport"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Slot demand report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/verification": {
+      "get": {
+        "description": "The headline operational metric: how many submissions cleared without an admin touching them. Automation rate excludes payments still awaiting their first attempt from the denominator, so a growing queue does not read as degrading automation.",
+        "parameters": [
+          {
+            "description": "Window start, RFC3339 (defaults to 30 days before to)",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationReport"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Verification report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/settings/booking": {
+      "get": {
+        "description": "The platform-owned pricing policy: the monthly-plan discount the public API applies to the next quote, so an edit here lands without a deploy.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingSettings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get booking settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "description": "A partial update of the monthly-plan discount, in basis points (1250 = 12.5%). A patch that changes nothing answers with the settings as they stand and writes no audit entry. The reason is recorded in the audit log.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBookingSettingsRequest"
+              }
+            }
+          },
+          "description": "Members to change",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingSettings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed, or no changes were given"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Update booking settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "description": "One page of accounts, newest first, searchable by name or email and filterable by status.",
+        "parameters": [
+          {
+            "description": "Filter to one status",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "enum": [
+                "active",
+                "disabled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Match the name or email (2-120 characters)",
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1-100 (default 20)",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0)",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserViewPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List users",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "description": "One account as the dashboard shows it. The password hash and OAuth linkage are deliberately absent.",
+        "parameters": [
+          {
+            "description": "User id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get a user",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{id}/role": {
+      "patch": {
+        "description": "Promotes a player to admin or demotes an admin back. Only an active account can be made an admin, and an admin cannot change their own role. Tokens already issued keep the role they were minted with until they expire; disabling the account is the immediate lever.",
+        "parameters": [
+          {
+            "description": "User id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRoleRequest"
+              }
+            }
+          },
+          "description": "Role change",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin, or you are changing your own role"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Change a user's role",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{id}/status": {
+      "patch": {
+        "description": "Disables or restores an account. Nothing is deleted: erasing an account would orphan its bookings, payments and audit entries, and disabling already stops every use of it. Disabling does not cancel bookings — that is a separate, reasoned action. An admin cannot change their own status.",
+        "parameters": [
+          {
+            "description": "User id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserStatusRequest"
+              }
+            }
+          },
+          "description": "Status change",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin, or you are changing your own status"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Change a user's status",
+        "tags": [
+          "users"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/admin/v1"
+    }
+  ]
+}

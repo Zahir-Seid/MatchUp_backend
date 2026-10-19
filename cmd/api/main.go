@@ -26,6 +26,7 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/notification"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/openapi"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/payment"
 )
 
@@ -46,6 +47,17 @@ const (
 	paymentRPS, paymentBurst = 0.2, 5
 )
 
+// MatchUp API is the player-facing HTTP API the mobile app talks to.
+//
+//	@title						MatchUp API
+//	@version					1.0.0
+//	@description				Game discovery, spot booking, payment submission and the in-app notification feed.
+//	@description				Amounts are computed and verified server-side; the client never supplies the amount that is checked.
+//	@BasePath					/v1
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Access token from /auth/login (or /auth/refresh), sent as `Bearer <token>`.
 func main() {
 	if err := run(); err != nil {
 		// Written to stderr rather than through slog: a configuration failure
@@ -129,37 +141,17 @@ func run() error {
 	paymentH := payment.NewHandler(paymentSvc, paymentLimiter.ByUser)
 	notifyH := notification.NewHandler(notifySvc)
 
-	r := chi.NewRouter()
-	// Order matters. Logging attaches the request-scoped logger that Recover
-	// reads, and it emits its line after the inner handler returns -- which,
-	// with Recover inside it, includes the request that panicked.
-	r.Use(httpx.RequestID)
-	r.Use(httpx.Logging(log))
-	r.Use(httpx.Recover)
-	r.Use(httpx.SecurityHeaders)
-
-	// Probes sit outside the rate limiter: an orchestrator polls them every few
-	// seconds from a single address, which is the exact shape the limiter
-	// exists to reject.
-	r.Method(http.MethodGet, "/healthz", httpx.LivenessHandler())
-	r.Method(http.MethodGet, "/readyz", httpx.ReadinessHandler(store, 2*time.Second))
-
-	r.Group(func(r chi.Router) {
-		r.Use(globalLimiter.Middleware)
-		r.Use(httpx.Timeout(handlerTimeout(cfg)))
-
-		r.Route("/v1", func(r chi.Router) {
-			authH.Routes(r)
-			catalogH.Routes(r)
-
-			r.Group(func(r chi.Router) {
-				r.Use(httpx.RequireAuth(authSvc))
-				authH.AuthedRoutes(r)
-				bookingH.Routes(r)
-				paymentH.Routes(r)
-				notifyH.Routes(r)
-			})
-		})
+	r := newRouter(routerDeps{
+		log:           log,
+		cfg:           cfg,
+		pinger:        store,
+		verifier:      authSvc,
+		authH:         authH,
+		catalogH:      catalogH,
+		bookingH:      bookingH,
+		paymentH:      paymentH,
+		notifyH:       notifyH,
+		globalLimiter: globalLimiter,
 	})
 
 	srv := &http.Server{
@@ -178,6 +170,78 @@ func run() error {
 	}
 
 	return httpx.Serve(ctx, srv, log, cfg.ShutdownTimeout)
+}
+
+// routerDeps is everything newRouter needs. It is a struct rather than a
+// parameter list because a second caller builds the router too: the
+// route-coverage test walks the real route table, so the committed OpenAPI
+// document is checked against what this binary serves rather than a copy of it.
+//
+// Services are absent except for the verifier: routing needs the handlers and
+// nothing else, which is what keeps that test free of a database.
+type routerDeps struct {
+	log      *slog.Logger
+	cfg      *config.Config
+	pinger   httpx.Pinger
+	verifier httpx.TokenVerifier
+
+	authH    *auth.Handler
+	catalogH *catalog.Handler
+	bookingH *booking.Handler
+	paymentH *payment.Handler
+	notifyH  *notification.Handler
+
+	globalLimiter *httpx.RateLimiter
+}
+
+// newRouter builds the public API's route table.
+func newRouter(d routerDeps) http.Handler {
+	r := chi.NewRouter()
+	// Order matters. Logging attaches the request-scoped logger that Recover
+	// reads, and it emits its line after the inner handler returns -- which,
+	// with Recover inside it, includes the request that panicked.
+	r.Use(httpx.RequestID)
+	r.Use(httpx.Logging(d.log))
+	r.Use(httpx.Recover)
+	r.Use(httpx.SecurityHeaders)
+
+	// Probes sit outside the rate limiter: an orchestrator polls them every few
+	// seconds from a single address, which is the exact shape the limiter
+	// exists to reject.
+	r.Method(http.MethodGet, "/healthz", httpx.LivenessHandler())
+	r.Method(http.MethodGet, "/readyz", httpx.ReadinessHandler(d.pinger, 2*time.Second))
+
+	// The generated contract: the OpenAPI 3 document the handlers annotate
+	// themselves with (make docs), served as JSON and as the Swagger UI that
+	// renders it. Mounted ahead of the rate-limited group: they answer with
+	// static bytes, and a limiter would only get in a caller's way.
+	r.Method(http.MethodGet, "/openapi.json", openapi.JSON(openapi.APISpec()))
+	// The UI fetches ./swagger_spec relative to the page, so the bare path has
+	// to land on the slash-terminated one.
+	r.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/docs/", http.StatusMovedPermanently)
+	})
+	r.Handle("/docs/*", http.StripPrefix("/docs", openapi.UI(openapi.APISpec())))
+
+	r.Group(func(r chi.Router) {
+		r.Use(d.globalLimiter.Middleware)
+		r.Use(httpx.Timeout(handlerTimeout(d.cfg)))
+
+		r.Route("/v1", func(r chi.Router) {
+			d.authH.Routes(r)
+			d.catalogH.Routes(r)
+
+			r.Group(func(r chi.Router) {
+				r.Use(httpx.RequireAuth(d.verifier))
+				d.authH.AuthedRoutes(r)
+				d.bookingH.Routes(r)
+				d.paymentH.Routes(r)
+				d.notifyH.Routes(r)
+			})
+		})
+	})
+
+	return r
 }
 
 // handlerTimeout keeps handler cancellation just inside the server's write

@@ -23,7 +23,7 @@ type Report[T any] struct {
 	From time.Time `json:"from"`
 	To   time.Time `json:"to"`
 	Rows []T       `json:"rows"`
-}
+} //	@name	Report
 
 func newReport[T any](w window, rows []T) Report[T] {
 	if rows == nil {
@@ -50,7 +50,7 @@ type FieldRevenue struct {
 	Margin        *string   `json:"margin,omitempty"`
 	MarginSantim  *int64    `json:"margin_santim,omitempty"`
 	CostComplete  bool      `json:"cost_complete"`
-}
+} //	@name	FieldRevenue
 
 // RevenueTotals is the headline row. CostComplete is true only when every field
 // in the window had complete cost data, so one field with a missing cost
@@ -65,7 +65,7 @@ type RevenueTotals struct {
 	Margin        *string `json:"margin,omitempty"`
 	MarginSantim  *int64  `json:"margin_santim,omitempty"`
 	CostComplete  bool    `json:"cost_complete"`
-}
+} //	@name	RevenueTotals
 
 // RevenueReport is the per-field revenue breakdown with its totals.
 type RevenueReport struct {
@@ -73,7 +73,7 @@ type RevenueReport struct {
 	To     time.Time      `json:"to"`
 	Fields []FieldRevenue `json:"fields"`
 	Totals RevenueTotals  `json:"totals"`
-}
+} //	@name	RevenueReport
 
 // Revenue reports confirmed revenue per field over the window. The window is
 // read against confirmed_at, not created_at: revenue belongs to the day the
@@ -145,7 +145,7 @@ type DailyVolume struct {
 	PendingReview          int64  `json:"pending_review"`
 	ConfirmedRevenue       string `json:"confirmed_revenue"`
 	ConfirmedRevenueSantim int64  `json:"confirmed_revenue_santim"`
-}
+} //	@name	DailyVolume
 
 // BookingVolume reports bookings created per day, with how they ended up.
 //
@@ -188,7 +188,7 @@ type SlotDemand struct {
 	HourOfDay    int32  `json:"hour_of_day"`
 	Bookings     int64  `json:"bookings"`
 	SpotsSold    int64  `json:"spots_sold"`
-}
+} //	@name	SlotDemand
 
 // isoDayNames indexes ISO-8601 weekdays, where 1 is Monday. Postgres' ISODOW
 // and Go's time.Weekday disagree on where the week starts, so the name is
@@ -240,7 +240,7 @@ type MethodStats struct {
 	// AutomationRate is the share of this method's decided payments that
 	// cleared without a human, as a fraction from 0 to 1.
 	AutomationRate float64 `json:"automation_rate"`
-}
+} //	@name	MethodStats
 
 // PaymentMethods reports how each method performs: how much it collects, and
 // how much of the review queue it generates. A method that needs a human on
@@ -285,7 +285,7 @@ type VerificationReport struct {
 	// as manual work would make the metric dip every time the queue grows
 	// rather than when automation actually degrades.
 	AutomationRate float64 `json:"automation_rate"`
-}
+} //	@name	VerificationReport
 
 // Verification reports the automation rate over the window.
 func (s *Service) Verification(ctx context.Context, w window) (*VerificationReport, error) {
@@ -325,7 +325,7 @@ type FieldCancellation struct {
 	RefundableSantim      int64   `json:"refundable_santim"`
 	CancellationRate      float64 `json:"cancellation_rate"`
 	ExpiryRate            float64 `json:"expiry_rate"`
-}
+} //	@name	FieldCancellation
 
 // Cancellations reports cancellation and expiry pressure per field.
 func (s *Service) Cancellations(ctx context.Context, w window) (Report[FieldCancellation], error) {
@@ -373,7 +373,7 @@ type AuditPage struct {
 	Items  []audit.View `json:"items"`
 	Limit  int32        `json:"limit"`
 	Offset int32        `json:"offset"`
-}
+} //	@name	AuditPage
 
 // AuditLog returns the admin action trail, newest first (PRD FR27).
 func (s *Service) AuditLog(ctx context.Context, filter audit.Filter, limit, offset int32) (AuditPage, error) {
@@ -392,6 +392,22 @@ func (s *Service) AuditLog(ctx context.Context, filter audit.Filter, limit, offs
 
 // ---- HTTP ----
 
+// revenueReport returns confirmed revenue per field (PRD FR28).
+//
+//	@Summary		Revenue report
+//	@Description	Confirmed revenue per field over the window, read against confirmation time: revenue belongs to the day the money was accepted. Margin is omitted rather than zero when any covered game is missing its cost.
+//	@Tags			reports
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			from	query		string	false	"Window start, RFC3339 (defaults to 30 days before to)"
+//	@Param			to		query		string	false	"Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days"
+//	@Success		200		{object}	admin.RevenueReport
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/reports/revenue [get]
 func (h *Handler) revenueReport(w http.ResponseWriter, r *http.Request) error {
 	win, err := parseWindow(r)
 	if err != nil {
@@ -405,6 +421,22 @@ func (h *Handler) revenueReport(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// bookingVolumeReport returns bookings created per day (PRD FR28).
+//
+//	@Summary		Booking volume report
+//	@Description	Bookings created per day with how they ended up. Status counts are the bookings' current status, not their status on that day, which is what makes each row answer "of the bookings taken that day, how many stuck".
+//	@Tags			reports
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			from	query		string	false	"Window start, RFC3339 (defaults to 30 days before to)"
+//	@Param			to		query		string	false	"Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days"
+//	@Success		200		{object}	admin.Report[admin.DailyVolume]
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/reports/bookings [get]
 func (h *Handler) bookingVolumeReport(w http.ResponseWriter, r *http.Request) error {
 	win, err := parseWindow(r)
 	if err != nil {
@@ -418,6 +450,22 @@ func (h *Handler) bookingVolumeReport(w http.ResponseWriter, r *http.Request) er
 	return nil
 }
 
+// popularSlotsReport returns which weekday/hour slots sell, busiest first (PRD FR28).
+//
+//	@Summary		Slot demand report
+//	@Description	Which weekday/hour slots actually sell, busiest first. The window is read against the game's start time rather than the booking's creation: the question is which slots to schedule, not when people browse.
+//	@Tags			reports
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			from	query		string	false	"Window start, RFC3339 (defaults to 30 days before to)"
+//	@Param			to		query		string	false	"Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days"
+//	@Success		200		{object}	admin.Report[admin.SlotDemand]
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/reports/slots [get]
 func (h *Handler) popularSlotsReport(w http.ResponseWriter, r *http.Request) error {
 	win, err := parseWindow(r)
 	if err != nil {
@@ -431,6 +479,22 @@ func (h *Handler) popularSlotsReport(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
+// paymentMethodsReport returns how each payment method performs (PRD FR28).
+//
+//	@Summary		Payment methods report
+//	@Description	How much each method collects and how much manual review it generates. A method that needs a human on every submission is a verifier problem. Automation rate is the share of that method's decided payments that cleared without a human, 0 to 1.
+//	@Tags			reports
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			from	query		string	false	"Window start, RFC3339 (defaults to 30 days before to)"
+//	@Param			to		query		string	false	"Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days"
+//	@Success		200		{object}	admin.Report[admin.MethodStats]
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/reports/payment-methods [get]
 func (h *Handler) paymentMethodsReport(w http.ResponseWriter, r *http.Request) error {
 	win, err := parseWindow(r)
 	if err != nil {
@@ -444,6 +508,22 @@ func (h *Handler) paymentMethodsReport(w http.ResponseWriter, r *http.Request) e
 	return nil
 }
 
+// verificationReport returns the automation rate over the window (PRD 15).
+//
+//	@Summary		Verification report
+//	@Description	The headline operational metric: how many submissions cleared without an admin touching them. Automation rate excludes payments still awaiting their first attempt from the denominator, so a growing queue does not read as degrading automation.
+//	@Tags			reports
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			from	query		string	false	"Window start, RFC3339 (defaults to 30 days before to)"
+//	@Param			to		query		string	false	"Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days"
+//	@Success		200		{object}	admin.VerificationReport
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/reports/verification [get]
 func (h *Handler) verificationReport(w http.ResponseWriter, r *http.Request) error {
 	win, err := parseWindow(r)
 	if err != nil {
@@ -457,6 +537,25 @@ func (h *Handler) verificationReport(w http.ResponseWriter, r *http.Request) err
 	return nil
 }
 
+// listAuditLogs returns the admin action trail, newest first (PRD FR27).
+//
+//	@Summary		List the audit log
+//	@Description	The append-only record of admin actions. action and target_type are matched exactly against historical names, so a renamed action stays searchable. There is no total: the client pages until a short page comes back.
+//	@Tags			audit
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			actor_id	query		string	false	"Only entries made by this admin (UUID)"
+//	@Param			action		query		string	false	"Only this action name (2-64 characters)"
+//	@Param			target_type	query		string	false	"Only this target type (2-64 characters)"
+//	@Param			limit		query		int		false	"Page size, 1-100 (default 20)"
+//	@Param			offset		query		int		false	"Rows to skip (default 0)"
+//	@Success		200			{object}	admin.AuditPage
+//	@Failure		401			{object}	httpx.ErrorEnvelope
+//	@Failure		403			{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422			{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429			{object}	httpx.ErrorEnvelope
+//	@Failure		500			{object}	httpx.ErrorEnvelope
+//	@Router			/audit-logs [get]
 func (h *Handler) listAuditLogs(w http.ResponseWriter, r *http.Request) error {
 	limit, offset, err := parsePagination(r)
 	if err != nil {
@@ -493,6 +592,22 @@ func (h *Handler) listAuditLogs(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// cancellationReport returns cancellation and expiry pressure per field (PRD FR28).
+//
+//	@Summary		Cancellations report
+//	@Description	Cancellation and expiry pressure per field, with the refundable amount. abandoned_after_confirm counts bookings that were paid for and then cancelled — the closest honest proxy for a no-show, since attendance is not recorded.
+//	@Tags			reports
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			from	query		string	false	"Window start, RFC3339 (defaults to 30 days before to)"
+//	@Param			to		query		string	false	"Window end, RFC3339, exclusive (defaults to now); the window may span at most 400 days"
+//	@Success		200		{object}	admin.Report[admin.FieldCancellation]
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/reports/cancellations [get]
 func (h *Handler) cancellationReport(w http.ResponseWriter, r *http.Request) error {
 	win, err := parseWindow(r)
 	if err != nil {

@@ -27,13 +27,30 @@ func (h *Handler) Routes(r chi.Router) {
 	})
 }
 
+// listResponse is one page of the feed.
 type listResponse struct {
 	Notifications []View `json:"notifications"`
 	UnreadCount   int64  `json:"unread_count"`
 	Limit         int32  `json:"limit"`
 	Offset        int32  `json:"offset"`
-}
+} //	@name	NotificationList
 
+// list returns a page of the caller's feed (PRD FR22).
+//
+//	@Summary		List my notifications
+//	@Description	One page of the caller's in-app feed, newest first, with the total unread count.
+//	@Tags			notifications, public
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			unread	query		bool	false	"Only unread notifications"
+//	@Param			limit	query		int		false	"Page size, 1-100 (default 20)"
+//	@Param			offset	query		int		false	"Rows to skip (default 0)"
+//	@Success		200		{object}	notification.listResponse
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed: bad paging"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/notifications [get]
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) error {
 	limit, offset, err := catalog.ParsePagination(r)
 	if err != nil {
@@ -58,6 +75,20 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// read marks one notification as read. Marking an already-read notification,
+// or an id that is not theirs, is deliberately not an error.
+//
+//	@Summary		Mark a notification read
+//	@Description	Marks one of the caller's own notifications as read. An id that matches nothing, or one that was already read, still answers 204.
+//	@Tags			notifications, public
+//	@Security		BearerAuth
+//	@Param			id	path	string	true	"Notification id (UUID)"
+//	@Success		204
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		404	{object}	httpx.ErrorEnvelope	"not_found: the id is not a UUID"
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/notifications/{id}/read [post]
 func (h *Handler) read(w http.ResponseWriter, r *http.Request) error {
 	id, err := catalog.ParseIDParam(r, "id")
 	if err != nil {
@@ -74,10 +105,23 @@ func (h *Handler) read(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// readAllResponse reports how many rows changed.
 type readAllResponse struct {
 	MarkedRead int64 `json:"marked_read"`
-}
+} //	@name	ReadAllResult
 
+// readAll marks the whole feed read (PRD FR22).
+//
+//	@Summary		Mark all notifications read
+//	@Description	Marks every unread notification in the caller's feed as read and reports how many changed.
+//	@Tags			notifications, public
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Success		200	{object}	notification.readAllResponse
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/notifications/read-all [post]
 func (h *Handler) readAll(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {

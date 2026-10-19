@@ -1,0 +1,2459 @@
+{
+  "components": {
+    "schemas": {
+      "BookedGame": {
+        "properties": {
+          "game": {
+            "$ref": "#/components/schemas/Game"
+          },
+          "week_index": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Booking": {
+        "properties": {
+          "booking_type": {
+            "type": "string"
+          },
+          "cancelled_at": {
+            "type": "string"
+          },
+          "confirmed_at": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "discount": {
+            "type": "string"
+          },
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/BookedGame"
+            },
+            "type": "array"
+          },
+          "hold_expires_at": {
+            "description": "HoldExpiresAt and HoldSecondsRemaining drive the countdown on the payment\nscreen (PRD FR12). Both are absent once the hold no longer applies.",
+            "type": "string"
+          },
+          "hold_seconds_remaining": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/Participant"
+            },
+            "type": "array"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentView"
+            },
+            "type": "array"
+          },
+          "price_per_player": {
+            "type": "string"
+          },
+          "reference_code": {
+            "type": "string"
+          },
+          "spot_count": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "subtotal": {
+            "type": "string"
+          },
+          "total": {
+            "type": "string"
+          },
+          "total_santim": {
+            "type": "integer"
+          },
+          "week_count": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "BookingList": {
+        "properties": {
+          "bookings": {
+            "items": {
+              "$ref": "#/components/schemas/Booking"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ChangePasswordRequest": {
+        "properties": {
+          "current_password": {
+            "type": "string"
+          },
+          "new_password": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CreateBookingRequest": {
+        "properties": {
+          "booking_type": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "participants": {
+            "description": "Participants names some or all of the reserved spots (PRD FR10). Spots\nleft unnamed are still reserved.",
+            "items": {
+              "$ref": "#/components/schemas/ParticipantInput"
+            },
+            "type": "array"
+          },
+          "spot_count": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorCode": {
+        "enum": [
+          "bad_request",
+          "validation_failed",
+          "not_found",
+          "conflict",
+          "rate_limited",
+          "internal_error",
+          "service_unavailable",
+          "unsupported_media_type",
+          "payload_too_large",
+          "unauthorized",
+          "forbidden",
+          "invalid_credentials",
+          "email_in_use",
+          "token_expired",
+          "token_reused",
+          "account_disabled",
+          "insufficient_capacity",
+          "game_unavailable",
+          "series_incomplete",
+          "hold_expired",
+          "booking_not_pending",
+          "booking_not_cancelable",
+          "payment_reference_reused",
+          "payment_mismatch",
+          "payment_not_found",
+          "account_suffix_required",
+          "idempotency_key_conflict",
+          "verifier_unavailable"
+        ],
+        "type": "string",
+        "x-enum-varnames": [
+          "CodeBadRequest",
+          "CodeValidation",
+          "CodeNotFound",
+          "CodeConflict",
+          "CodeRateLimited",
+          "CodeInternal",
+          "CodeUnavailable",
+          "CodeUnsupported",
+          "CodePayloadTooBig",
+          "CodeUnauthorized",
+          "CodeForbidden",
+          "CodeInvalidCredential",
+          "CodeEmailInUse",
+          "CodeTokenExpired",
+          "CodeTokenReused",
+          "CodeAccountDisabled",
+          "CodeInsufficientCapacity",
+          "CodeGameUnavailable",
+          "CodeSeriesIncomplete",
+          "CodeHoldExpired",
+          "CodeBookingNotPending",
+          "CodeBookingNotCancelable",
+          "CodePaymentReferenceReused",
+          "CodePaymentMismatch",
+          "CodePaymentNotFound",
+          "CodeSuffixRequired",
+          "CodeIdempotencyConflict",
+          "CodeVerifierUnavailable"
+        ]
+      },
+      "ErrorEnvelope": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "type": "object"
+      },
+      "Field": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FieldList": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/Field"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "Game": {
+        "properties": {
+          "capacity": {
+            "type": "integer"
+          },
+          "duration_minutes": {
+            "type": "integer"
+          },
+          "ends_at": {
+            "type": "string"
+          },
+          "field": {
+            "$ref": "#/components/schemas/Field"
+          },
+          "format": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_full": {
+            "type": "boolean"
+          },
+          "is_recurring": {
+            "type": "boolean"
+          },
+          "price_per_player": {
+            "type": "string"
+          },
+          "price_per_player_santim": {
+            "description": "Santim values travel alongside the formatted strings so the client can\ncompute totals without parsing display text.",
+            "type": "integer"
+          },
+          "series_id": {
+            "type": "string"
+          },
+          "spots_remaining": {
+            "type": "integer"
+          },
+          "starts_at": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "GameList": {
+        "properties": {
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/Game"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "GoogleSignInRequest": {
+        "properties": {
+          "id_token": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Message": {
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Notification": {
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "read_at": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "NotificationList": {
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "notifications": {
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            },
+            "type": "array"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "unread_count": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Participant": {
+        "properties": {
+          "fullName": {
+            "type": "string"
+          },
+          "slotIndex": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ParticipantInput": {
+        "properties": {
+          "full_name": {
+            "type": "string"
+          },
+          "slot_index": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PasswordResetConfirmRequest": {
+        "properties": {
+          "password": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PasswordResetRequest": {
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PaymentRequest": {
+        "properties": {
+          "account_suffix": {
+            "description": "AccountSuffix is only needed for a bare CBE FT reference.",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "IdempotencyKey lets the app retry a submission it is unsure landed\nwithout risking a second payment record. The Idempotency-Key header is\nan accepted alternative.",
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "transaction_reference": {
+            "description": "Reference accepts what the payer has: a pasted CBE receipt link, a bare\nFT reference, a CBE token, or a Telebirr reference.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PaymentSubmission": {
+        "properties": {
+          "booking_id": {
+            "type": "string"
+          },
+          "expected_amount": {
+            "description": "ExpectedAmount is the amount being checked against the bank, echoed so\nthe payer can see what we are looking for if it does not match.",
+            "type": "string"
+          },
+          "expected_amount_santim": {
+            "type": "integer"
+          },
+          "message": {
+            "description": "Message is what the app shows: verification is asynchronous, so this is\nnever a confirmation.",
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "submitted_at": {
+            "type": "string"
+          },
+          "transaction_reference": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PaymentView": {
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "expected_amount": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "resolved_at": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "transaction_reference": {
+            "type": "string"
+          },
+          "verified_amount": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Quote": {
+        "properties": {
+          "booking_type": {
+            "type": "string"
+          },
+          "discount": {
+            "type": "string"
+          },
+          "discount_label": {
+            "description": "DiscountLabel explains the deduction in the app's own words.",
+            "type": "string"
+          },
+          "discount_santim": {
+            "type": "integer"
+          },
+          "price_per_player": {
+            "type": "string"
+          },
+          "price_per_player_santim": {
+            "type": "integer"
+          },
+          "spot_count": {
+            "type": "integer"
+          },
+          "subtotal": {
+            "type": "string"
+          },
+          "subtotal_santim": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "string"
+          },
+          "total_santim": {
+            "type": "integer"
+          },
+          "week_count": {
+            "type": "integer"
+          },
+          "weeks": {
+            "description": "Weeks lists what the money buys, one entry per covered game.",
+            "items": {
+              "$ref": "#/components/schemas/QuoteWeek"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "QuoteRequest": {
+        "properties": {
+          "booking_type": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "spot_count": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "QuoteWeek": {
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "line_total": {
+            "type": "string"
+          },
+          "price_per_player": {
+            "type": "string"
+          },
+          "spots_remaining": {
+            "type": "integer"
+          },
+          "starts_at": {
+            "type": "string"
+          },
+          "week_index": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ReadAllResult": {
+        "properties": {
+          "marked_read": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "RefreshRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Session": {
+        "properties": {
+          "tokens": {
+            "$ref": "#/components/schemas/TokenPair"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "type": "object"
+      },
+      "SignupRequest": {
+        "properties": {
+          "age": {
+            "type": "integer"
+          },
+          "email": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TokenPair": {
+        "properties": {
+          "access_expires_at": {
+            "type": "string"
+          },
+          "access_token": {
+            "type": "string"
+          },
+          "refresh_expires_at": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "User": {
+        "properties": {
+          "age": {
+            "type": "integer"
+          },
+          "email": {
+            "type": "string"
+          },
+          "email_verified": {
+            "type": "boolean"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "has_password": {
+            "description": "HasPassword lets the app hide \"change password\" for Google-only\naccounts rather than offering an action that cannot succeed.",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "bearerFormat": "JWT",
+        "description": "Access token from /auth/login (or /auth/refresh), sent as `Bearer \u003ctoken\u003e`.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "Game discovery, spot booking, payment submission and the in-app notification feed.\nAmounts are computed and verified server-side; the client never supplies the amount that is checked.",
+    "title": "MatchUp API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/auth/google": {
+      "post": {
+        "description": "Verifies a Google ID token and returns a MatchUp session, registering the account when it is new.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleSignInRequest"
+              }
+            }
+          },
+          "description": "Google ID token",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "invalid_credentials: the Google token was not accepted"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "service_unavailable: Google sign-in is not configured"
+          }
+        },
+        "summary": "Sign in with Google",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "Signs in with an email and password and returns a fresh token pair. On the admin API the account must additionally be an admin: correct player credentials are refused with 403.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "description": "Credentials",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "invalid_credentials: wrong email or password"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account may not sign in here"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Sign in",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "Revokes the session behind the refresh token. Revoking a session that is already dead is not an error.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "description": "Refresh token",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Sign out",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout-all": {
+      "post": {
+        "description": "Revokes every refresh token issued to the caller, on every device.",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Sign out everywhere",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/auth/password-reset/confirm": {
+      "post": {
+        "description": "Sets the account's new password using the token from the reset link, and revokes every existing session.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirmRequest"
+              }
+            }
+          },
+          "description": "Reset token and new password",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "token_expired: the link has expired or is not valid"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "conflict: the link has already been used"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed: the new password is too weak"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Confirm a password reset",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/password-reset/request": {
+      "post": {
+        "description": "Mails a reset link when the address has an account. The response is identical either way, so it cannot be used to discover which emails are registered.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "description": "Account email",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Request a password reset",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/password/change": {
+      "post": {
+        "description": "Sets a new password and returns a fresh token pair. Other sessions are revoked; the returned pair is the one that keeps working. 409 when the account signs in with Google and has no password to change.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "description": "Current and new password",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "conflict: this account has no password yet"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed: current password incorrect, or the new one is too weak"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Change password",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "description": "Exchanges a refresh token for a new token pair. Refresh tokens are single-use: replaying one that was already rotated revokes the whole session family and answers 401.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "description": "Refresh token",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "token_expired or token_reused"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Refresh a session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "description": "Registers a player account and returns it with a fresh token pair. Rate limited more strictly than the rest of the API.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              }
+            }
+          },
+          "description": "Account details",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "email_in_use: that email already has an account"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed: a field needs attention"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Create an account",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/bookings": {
+      "get": {
+        "description": "One page of the caller's bookings, newest first, optionally filtered to a single status.",
+        "parameters": [
+          {
+            "description": "Filter to one status",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "enum": [
+                "pending_payment",
+                "verifying",
+                "confirmed",
+                "pending_review",
+                "expired",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1-100 (default 20)",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0)",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed: unknown status or bad paging"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List my bookings",
+        "tags": [
+          "bookings"
+        ]
+      },
+      "post": {
+        "description": "Reserves the requested spots and returns the booking with its hold countdown. A monthly plan covers the next weekly occurrences of the same slot. Spots are released automatically when the hold lapses unpaid.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookingRequest"
+              }
+            }
+          },
+          "description": "Reservation to make",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found: no such game"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "insufficient_capacity, game_unavailable or series_incomplete"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Create a booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/bookings/quote": {
+      "post": {
+        "description": "The full price breakdown for a selection — per-player price, subtotal, monthly discount and the games it would cover — without reserving anything.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequest"
+              }
+            }
+          },
+          "description": "Selection to price",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quote"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found: no such game"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "game_unavailable or series_incomplete"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Price a booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/bookings/{id}": {
+      "get": {
+        "description": "The booking's games, participants and payment attempts. Another account's booking is simply not found.",
+        "parameters": [
+          {
+            "description": "Booking id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get a booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/bookings/{id}/payment": {
+      "post": {
+        "description": "Records a bank reference against the booking and checks it with the bank. Verification is asynchronous: 202 means the check has started, while 200 means an identical submission was replayed. Reusing a reference, or the same idempotency key with different contents, answers 409.",
+        "parameters": [
+          {
+            "description": "Booking id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentRequest"
+              }
+            }
+          },
+          "description": "Payment reference",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentSubmission"
+                }
+              }
+            },
+            "description": "Replay of an earlier submission"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentSubmission"
+                }
+              }
+            },
+            "description": "Verification started"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found: no such booking"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "hold_expired, booking_not_pending, payment_reference_reused or idempotency_key_conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed or account_suffix_required"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Submit a payment",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/fields": {
+      "get": {
+        "description": "The fields a player can filter the discovery screen by.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "List fields",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/games": {
+      "get": {
+        "description": "Upcoming games, soonest first, with the derived availability the discovery screen renders. Filter values that cannot be parsed are rejected rather than ignored.",
+        "parameters": [
+          {
+            "description": "Restrict to one field (UUID)",
+            "in": "query",
+            "name": "field_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Game format",
+            "in": "query",
+            "name": "format",
+            "schema": {
+              "enum": [
+                "5_a_side",
+                "7_a_side"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Earliest start time (RFC3339)",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Latest start time (RFC3339)",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only games with spots left",
+            "in": "query",
+            "name": "only_available",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Page size, 1-100 (default 20)",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0)",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A query parameter could not be parsed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "List games",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/games/{id}": {
+      "get": {
+        "description": "One game with its field and derived availability. An id that is not a UUID, or that matches no game, is a 404.",
+        "parameters": [
+          {
+            "description": "Game id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Game"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get one game",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/me": {
+      "get": {
+        "description": "The caller's own account, as the app renders it.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The token is invalid, or the account no longer exists"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get my account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/notifications": {
+      "get": {
+        "description": "One page of the caller's in-app feed, newest first, with the total unread count.",
+        "parameters": [
+          {
+            "description": "Only unread notifications",
+            "in": "query",
+            "name": "unread",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Page size, 1-100 (default 20)",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows to skip (default 0)",
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed: bad paging"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List my notifications",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/read-all": {
+      "post": {
+        "description": "Marks every unread notification in the caller's feed as read and reports how many changed.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadAllResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Mark all notifications read",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/{id}/read": {
+      "post": {
+        "description": "Marks one of the caller's own notifications as read. An id that matches nothing, or one that was already read, still answers 204.",
+        "parameters": [
+          {
+            "description": "Notification id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found: the id is not a UUID"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Mark a notification read",
+        "tags": [
+          "notifications"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/v1"
+    }
+  ]
+}

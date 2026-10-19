@@ -40,3 +40,7 @@ go.work.sum
 
 # Local product and architecture documents
 /docs/
+
+# Staging directory for `make docs`. The generated and committed OpenAPI
+# specifications live in internal/openapi/.
+/.openapi/

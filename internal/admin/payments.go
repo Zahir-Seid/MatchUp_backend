@@ -42,8 +42,8 @@ type ReviewItem struct {
 	// the payee check, the reasons, and the bank's own response verbatim. This
 	// is the evidence the decision rests on, so it is passed through unedited
 	// rather than summarized.
-	VerifierResult json.RawMessage `json:"verifier_result"`
-}
+	VerifierResult json.RawMessage `json:"verifier_result" swaggertype:"object"`
+} //	@name	PaymentReviewItem
 
 // ReviewQueue returns the payments that automatic verification could not settle,
 // oldest first: a customer whose money is in limbo has been waiting longest.
@@ -123,7 +123,7 @@ type Resolved struct {
 	// SpotsReleased is set on a rejection, reporting how many games had their
 	// capacity credited back.
 	SpotsReleased int64 `json:"spots_released"`
-}
+} //	@name	PaymentResolution
 
 // ResolvePayment applies an approve/reject decision (PRD FR26).
 //
@@ -281,6 +281,22 @@ func (s *Service) rejectBooking(
 
 // ---- HTTP ----
 
+// listPaymentReviewQueue returns the payments awaiting a human decision.
+//
+//	@Summary		List the payment review queue
+//	@Description	Payments automatic verification could not settle, oldest first: a customer whose money is in limbo has been waiting longest.
+//	@Tags			payments
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			limit	query		int	false	"Page size, 1-100 (default 20)"
+//	@Param			offset	query		int	false	"Rows to skip (default 0)"
+//	@Success		200		{object}	admin.Page[admin.ReviewItem]
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed: bad paging"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/payments/review-queue [get]
 func (h *Handler) listPaymentReviewQueue(w http.ResponseWriter, r *http.Request) error {
 	limit, offset, err := parsePagination(r)
 	if err != nil {
@@ -294,13 +310,33 @@ func (h *Handler) listPaymentReviewQueue(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
+// resolvePaymentRequest is an admin's decision body.
 type resolvePaymentRequest struct {
 	// Decision is "approve" or "reject". A named decision beats a boolean in a
 	// JSON body: "approved": false is far too easy to send by accident.
 	Decision string `json:"decision"`
 	Reason   string `json:"reason"`
-}
+} //	@name	ResolvePaymentRequest
 
+// resolvePayment approves or rejects one queued payment (PRD FR26).
+//
+//	@Summary		Resolve a queued payment
+//	@Description	Approving confirms the booking; rejecting cancels it and releases the held spots. The reason is mandatory and is passed to the customer verbatim. A payment that left the queue while the screen was open is a conflict.
+//	@Tags			payments
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string						true	"Payment id (UUID)"
+//	@Param			body	body		admin.resolvePaymentRequest	true	"Decision"
+//	@Success		200		{object}	admin.Resolved
+//	@Failure		400		{object}	httpx.ErrorEnvelope	"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		403		{object}	httpx.ErrorEnvelope	"forbidden: the account is not an admin"
+//	@Failure		409		{object}	httpx.ErrorEnvelope	"conflict: that payment is no longer awaiting review"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/payments/{id}/resolve [post]
 func (h *Handler) resolvePayment(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {

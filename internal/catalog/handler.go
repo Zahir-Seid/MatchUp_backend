@@ -34,12 +34,37 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Method(http.MethodGet, "/games/{id}", httpx.Handler(h.getGame))
 }
 
+// listGamesResponse wraps the games page.
 type listGamesResponse struct {
 	Games  []GameView `json:"games"`
 	Limit  int32      `json:"limit"`
 	Offset int32      `json:"offset"`
-}
+} //	@name	GameList
 
+// fieldListResponse wraps the fields list in an object so the response can grow
+// a sibling (a total, a cursor) without breaking clients.
+type fieldListResponse struct {
+	Fields []FieldView `json:"fields"`
+} //	@name	FieldList
+
+// listGames lists upcoming games matching the discovery filter (PRD FR7).
+//
+//	@Summary		List games
+//	@Description	Upcoming games, soonest first, with the derived availability the discovery screen renders. Filter values that cannot be parsed are rejected rather than ignored.
+//	@Tags			catalog, public
+//	@Produce		json
+//	@Param			field_id		query		string	false	"Restrict to one field (UUID)"
+//	@Param			format			query		string	false	"Game format"	Enums(5_a_side, 7_a_side)
+//	@Param			from			query		string	false	"Earliest start time (RFC3339)"
+//	@Param			to				query		string	false	"Latest start time (RFC3339)"
+//	@Param			only_available	query		bool	false	"Only games with spots left"
+//	@Param			limit			query		int		false	"Page size, 1-100 (default 20)"
+//	@Param			offset			query		int		false	"Rows to skip (default 0)"
+//	@Success		200				{object}	catalog.listGamesResponse
+//	@Failure		422				{object}	httpx.ErrorEnvelope	"A query parameter could not be parsed"
+//	@Failure		429				{object}	httpx.ErrorEnvelope
+//	@Failure		500				{object}	httpx.ErrorEnvelope
+//	@Router			/games [get]
 func (h *Handler) listGames(w http.ResponseWriter, r *http.Request) error {
 	filter, err := parseGameFilter(r)
 	if err != nil {
@@ -57,6 +82,18 @@ func (h *Handler) listGames(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// getGame returns one game with its field.
+//
+//	@Summary		Get one game
+//	@Description	One game with its field and derived availability. An id that is not a UUID, or that matches no game, is a 404.
+//	@Tags			catalog, public
+//	@Produce		json
+//	@Param			id	path		string	true	"Game id (UUID)"
+//	@Success		200	{object}	catalog.GameView
+//	@Failure		404	{object}	httpx.ErrorEnvelope
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/games/{id} [get]
 func (h *Handler) getGame(w http.ResponseWriter, r *http.Request) error {
 	id, err := ParseIDParam(r, "id")
 	if err != nil {
@@ -70,12 +107,22 @@ func (h *Handler) getGame(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// listFields returns the bookable fields, for the discovery filter.
+//
+//	@Summary		List fields
+//	@Description	The fields a player can filter the discovery screen by.
+//	@Tags			catalog, public
+//	@Produce		json
+//	@Success		200	{object}	catalog.fieldListResponse
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/fields [get]
 func (h *Handler) listFields(w http.ResponseWriter, r *http.Request) error {
 	fields, err := h.svc.ListFields(r.Context())
 	if err != nil {
 		return err
 	}
-	httpx.JSON(w, r, http.StatusOK, map[string]any{"fields": fields})
+	httpx.JSON(w, r, http.StatusOK, fieldListResponse{Fields: fields})
 	return nil
 }
 

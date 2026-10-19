@@ -35,7 +35,7 @@ type AdminFieldView struct {
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-}
+} //	@name	AdminFieldView
 
 func toAdminFieldView(f db.Field) AdminFieldView {
 	return AdminFieldView{
@@ -196,7 +196,7 @@ type AdminGameView struct {
 	CostToBusinessSantim *int64    `json:"cost_to_business_santim,omitempty"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
-}
+} //	@name	AdminGameView
 
 func toAdminGameView(g db.Game, f db.Field) AdminGameView {
 	view := AdminGameView{
@@ -541,7 +541,7 @@ type GameCancellation struct {
 	// PaidBookings is how many of them were already paid for, which is the
 	// number a person now has to settle a refund with.
 	PaidBookings int `json:"paid_bookings"`
-}
+} //	@name	GameCancellation
 
 // CancelGame cancels a scheduled game and tells everyone holding a booking on
 // it (PRD FR25).

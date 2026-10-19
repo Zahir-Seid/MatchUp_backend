@@ -245,7 +245,7 @@ type SubmitView struct {
 	// Message is what the app shows: verification is asynchronous, so this is
 	// never a confirmation.
 	Message string `json:"message"`
-}
+} //	@name	PaymentSubmission
 
 func toSubmitView(p db.Payment) SubmitView {
 	return SubmitView{

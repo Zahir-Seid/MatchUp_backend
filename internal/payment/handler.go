@@ -44,12 +44,33 @@ type submitRequest struct {
 	// FT reference, a CBE token, or a Telebirr reference.
 	Reference string `json:"transaction_reference"`
 	// AccountSuffix is only needed for a bare CBE FT reference.
-	AccountSuffix string `json:"account_suffix"`
+	AccountSuffix string `json:"account_suffix,omitempty"`
 	// IdempotencyKey lets the app retry a submission it is unsure landed
-	// without risking a second payment record.
-	IdempotencyKey string `json:"idempotency_key"`
-}
+	// without risking a second payment record. The Idempotency-Key header is
+	// an accepted alternative.
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
+} //	@name	PaymentRequest
 
+// submit starts verifying a payment for one of the caller's own bookings.
+//
+//	@Summary		Submit a payment
+//	@Description	Records a bank reference against the booking and checks it with the bank. Verification is asynchronous: 202 means the check has started, while 200 means an identical submission was replayed. Reusing a reference, or the same idempotency key with different contents, answers 409.
+//	@Tags			payments, public
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"Booking id (UUID)"
+//	@Param			body	body		payment.submitRequest	true	"Payment reference"
+//	@Success		200		{object}	payment.SubmitView		"Replay of an earlier submission"
+//	@Success		202		{object}	payment.SubmitView		"Verification started"
+//	@Failure		400		{object}	httpx.ErrorEnvelope		"Malformed JSON body"
+//	@Failure		401		{object}	httpx.ErrorEnvelope
+//	@Failure		404		{object}	httpx.ErrorEnvelope	"not_found: no such booking"
+//	@Failure		409		{object}	httpx.ErrorEnvelope	"hold_expired, booking_not_pending, payment_reference_reused or idempotency_key_conflict"
+//	@Failure		422		{object}	httpx.ErrorEnvelope	"validation_failed or account_suffix_required"
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/bookings/{id}/payment [post]
 func (h *Handler) submit(w http.ResponseWriter, r *http.Request) error {
 	principal, err := httpx.MustPrincipal(r.Context())
 	if err != nil {

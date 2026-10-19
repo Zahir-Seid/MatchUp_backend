@@ -12,7 +12,7 @@ import (
 // strings, so they are part of the API contract and must not be renamed once
 // released. The registry mirrors SDD Appendix B and extends it with the codes
 // the implementation actually needs.
-type Code string
+type Code string //	@name	ErrorCode
 
 const (
 	// Request-shape and generic failures.
@@ -110,17 +110,21 @@ var (
 	ErrUnavailable  = NewError(http.StatusServiceUnavailable, CodeUnavailable, "Temporarily unavailable. Please try again shortly.")
 )
 
-// errorEnvelope is the wire format for every failure: {"error":{...}}.
-type errorEnvelope struct {
-	Error errorBody `json:"error"`
-}
+// ErrorEnvelope is the wire format for every failure: {"error":{...}}. It is
+// exported because the generated API documentation references it.
+type ErrorEnvelope struct {
+	Error ErrorBody `json:"error"`
+} //	@name	ErrorEnvelope
 
-type errorBody struct {
+// ErrorBody is the shape inside the error envelope. Fields is present only for
+// validation failures; RequestID echoes the X-Request-ID header when there is
+// one, so a user can quote it in a report.
+type ErrorBody struct {
 	Code      Code              `json:"code"`
 	Message   string            `json:"message"`
 	Fields    map[string]string `json:"fields,omitempty"`
 	RequestID string            `json:"request_id,omitempty"`
-}
+} //	@name	ErrorBody
 
 // AsError extracts an *Error from an error chain, falling back to a generic
 // internal error. Handlers can therefore return domain errors directly and let

@@ -65,7 +65,7 @@ type GameView struct {
 	Status               string    `json:"status"`
 	IsRecurring          bool      `json:"is_recurring"`
 	Field                FieldView `json:"field"`
-}
+} //	@name	Game
 
 // FieldView is a field as the app renders it.
 type FieldView struct {
@@ -73,7 +73,7 @@ type FieldView struct {
 	Name     string    `json:"name"`
 	Location string    `json:"location"`
 	ImageURL *string   `json:"image_url,omitempty"`
-}
+} //	@name	Field
 
 // ToGameView projects a game row and its field into the API shape.
 func ToGameView(game db.Game, field db.Field) GameView {
