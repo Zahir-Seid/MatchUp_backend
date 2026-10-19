@@ -296,6 +296,12 @@ func (s *Service) CancelBooking(ctx context.Context, actor, bookingID uuid.UUID,
 			return err
 		}
 
+		// The release may have reopened a sold-out game for the people
+		// watching it; their alerts commit with the cancellation.
+		if err := booking.NotifySpotsAvailable(ctx, q, s.notifier, rows[0].GameIds); err != nil {
+			return err
+		}
+
 		return s.record(ctx, q, audit.Entry{
 			ActorID:    &actor,
 			Action:     audit.ActionBookingCancelled,

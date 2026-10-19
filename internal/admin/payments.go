@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Zahir-Seid/MatchUp_backend/internal/audit"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/booking"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/money"
@@ -250,11 +251,11 @@ func (s *Service) rejectBooking(
 	ctx context.Context,
 	q *db.Queries,
 	resolved db.Payment,
-	booking db.Booking,
+	bk db.Booking,
 	reason string,
 	out *Resolved,
 ) error {
-	rows, err := q.CancelBooking(ctx, booking.ID)
+	rows, err := q.CancelBooking(ctx, bk.ID)
 	if err != nil {
 		return fmt.Errorf("cancel booking after rejection: %w", err)
 	}
@@ -262,8 +263,8 @@ func (s *Service) rejectBooking(
 		// Already cancelled or expired. Nothing to release and nothing to tell
 		// the customer that they were not told when it happened.
 		s.log.Warn("rejected a payment for a booking that was already closed",
-			"booking_id", booking.ID.String(),
-			"booking_status", booking.Status,
+			"booking_id", bk.ID.String(),
+			"booking_status", bk.Status,
 			"payment_id", resolved.ID.String())
 		return nil
 	}
@@ -272,11 +273,17 @@ func (s *Service) rejectBooking(
 
 	// The admin's reason is passed through to the customer. A rejection with no
 	// explanation is worse for them than an internal note being visible.
-	return s.notify(ctx, q, booking.UserID, notification.TypePaymentRejected, map[string]any{
-		"booking_id":     booking.ID.String(),
-		"reference_code": booking.ReferenceCode,
+	if err := s.notify(ctx, q, bk.UserID, notification.TypePaymentRejected, map[string]any{
+		"booking_id":     bk.ID.String(),
+		"reference_code": bk.ReferenceCode,
 		"reason":         reason,
-	})
+	}); err != nil {
+		return err
+	}
+
+	// The release may have reopened a game someone is watching; that alert
+	// commits with the rejection.
+	return booking.NotifySpotsAvailable(ctx, q, s.notifier, rows[0].GameIds)
 }
 
 // ---- HTTP ----

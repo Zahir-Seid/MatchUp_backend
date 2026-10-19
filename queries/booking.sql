@@ -112,7 +112,11 @@ released AS (
     WHERE g.id = pg.game_id
     RETURNING g.id
 )
-SELECT e.id, e.user_id, e.reference_code, (SELECT count(*) FROM released) AS games_credited
+SELECT e.id, e.user_id, e.reference_code,
+       (SELECT count(*) FROM released) AS games_credited,
+       -- The games that actually got spots back, for the watchers who asked to
+       -- hear about it. Uncorrelated, so every row carries the same set.
+       COALESCE((SELECT array_agg(id) FROM released), '{}'::uuid[])::uuid[] AS game_ids
 FROM expired e;
 
 -- Bookings whose hold is about to run out, for the "finish your payment"
@@ -163,7 +167,10 @@ released AS (
     WHERE g.id = pg.game_id
     RETURNING g.id
 )
-SELECT c.id, c.user_id, c.reference_code, (SELECT count(*) FROM released) AS games_credited
+SELECT c.id, c.user_id, c.reference_code,
+       (SELECT count(*) FROM released) AS games_credited,
+       -- The credited games, for the watchers who asked to hear about it.
+       COALESCE((SELECT array_agg(id) FROM released), '{}'::uuid[])::uuid[] AS game_ids
 FROM cancelled c;
 
 -- Who is affected when a game is cancelled: every booking still holding or

@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Zahir-Seid/MatchUp_backend/internal/audit"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/booking"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/catalog"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
@@ -505,6 +506,14 @@ func (s *Service) AdjustCapacity(ctx context.Context, actor, id uuid.UUID, delta
 						before.SpotsRemaining, before.Capacity)).WithCause(err)
 			}
 			return fmt.Errorf("adjust game capacity: %w", err)
+		}
+
+		// Raising capacity is the other way a sold-out game gains spots:
+		// anyone watching hears about it here, in the same transaction. On a
+		// reduction that found free spots to consume there is normally nothing
+		// for the query to announce.
+		if err := booking.NotifySpotsAvailable(ctx, q, s.notifier, []uuid.UUID{game.ID}); err != nil {
+			return err
 		}
 
 		return s.record(ctx, q, audit.Entry{

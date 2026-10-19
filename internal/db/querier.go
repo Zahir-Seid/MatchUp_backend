@@ -65,6 +65,10 @@ type Querier interface {
 	CreateBookingParticipants(ctx context.Context, arg CreateBookingParticipantsParams) error
 	CreateField(ctx context.Context, arg CreateFieldParams) (Field, error)
 	CreateGame(ctx context.Context, arg CreateGameParams) (Game, error)
+	// "Notify me when a spot frees up" (PRD FR29). Watching twice is a no-op, not
+	// an error: the button's effect is "be watching", and a stale app pressing it
+	// again is not a client bug worth reporting.
+	CreateGameWatch(ctx context.Context, arg CreateGameWatchParams) error
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
 	CreateNotificationDeliveries(ctx context.Context, arg CreateNotificationDeliveriesParams) error
 	CreateOAuthIdentity(ctx context.Context, arg CreateOAuthIdentityParams) (OauthIdentity, error)
@@ -82,6 +86,11 @@ type Querier interface {
 	// FCM reported the token as unregistered; drop it (SDD 11.2).
 	DeleteDeviceToken(ctx context.Context, fcmToken string) (int64, error)
 	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
+	DeleteGameWatch(ctx context.Context, arg DeleteGameWatchParams) error
+	// A watch is spent once its alert is enqueued. The delete runs in the same
+	// transaction as the enqueue, so an alert and its watch row move together:
+	// neither can be lost without the other, and neither can happen twice.
+	DeleteGameWatches(ctx context.Context, ids []uuid.UUID) error
 	// Transactional email queue. Same claim/retry contract as the other queues.
 	EnqueueEmail(ctx context.Context, arg EnqueueEmailParams) (EmailOutbox, error)
 	// Part A of the expiry/verification race fix. A booking is expired only when
@@ -107,6 +116,7 @@ type Querier interface {
 	GetBookingWithUser(ctx context.Context, id uuid.UUID) (GetBookingWithUserRow, error)
 	GetField(ctx context.Context, id uuid.UUID) (Field, error)
 	GetGame(ctx context.Context, id uuid.UUID) (Game, error)
+	GetGameWatch(ctx context.Context, arg GetGameWatchParams) (bool, error)
 	GetGameWithField(ctx context.Context, id uuid.UUID) (GetGameWithFieldRow, error)
 	GetPasswordResetTokenByHash(ctx context.Context, tokenHash []byte) (PasswordResetToken, error)
 	GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
@@ -161,6 +171,11 @@ type Querier interface {
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	// Everything the worker needs to run one verification, in one round trip.
 	ListVerificationContexts(ctx context.Context, paymentIds []uuid.UUID) ([]ListVerificationContextsRow, error)
+	// The watchers to tell when a game's seats were just freed (or added). The
+	// game side is filtered here rather than by the caller: only a scheduled,
+	// future game that now has spots is worth telling anyone about, so a cancelled
+	// or started game cannot produce an alert even if its spots were released.
+	ListWatchersForAvailableGames(ctx context.Context, gameIds []uuid.UUID) ([]ListWatchersForAvailableGamesRow, error)
 	MarkAllNotificationsRead(ctx context.Context, userID uuid.UUID) (int64, error)
 	MarkDeliverySent(ctx context.Context, id uuid.UUID) error
 	// Success also scrubs the payload: a sent reset mail must not leave its

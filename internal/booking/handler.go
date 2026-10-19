@@ -39,6 +39,7 @@ func (h *Handler) Routes(r chi.Router) {
 		})
 		r.Method(http.MethodGet, "/{id}", httpx.Handler(h.get))
 	})
+	h.mountWatch(r)
 }
 
 // quoteRequest is the selection being priced.

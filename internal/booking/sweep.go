@@ -106,6 +106,15 @@ func (s *Sweeper) ExpireOnce(ctx context.Context) (int, error) {
 				return fmt.Errorf("notify hold expired for booking %s: %w", row.ID, err)
 			}
 		}
+
+		// Releasing held spots can reopen a game that other people asked to
+		// hear about. Every row carries the same set of games actually
+		// credited; the alerts commit with the release.
+		if len(rows) > 0 {
+			if err := NotifySpotsAvailable(ctx, q, s.notifier, rows[0].GameIds); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {

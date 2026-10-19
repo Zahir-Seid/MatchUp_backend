@@ -37,15 +37,19 @@ released AS (
     WHERE g.id = pg.game_id
     RETURNING g.id
 )
-SELECT c.id, c.user_id, c.reference_code, (SELECT count(*) FROM released) AS games_credited
+SELECT c.id, c.user_id, c.reference_code,
+       (SELECT count(*) FROM released) AS games_credited,
+       -- The credited games, for the watchers who asked to hear about it.
+       COALESCE((SELECT array_agg(id) FROM released), '{}'::uuid[])::uuid[] AS game_ids
 FROM cancelled c
 `
 
 type CancelBookingRow struct {
-	ID            uuid.UUID `json:"id"`
-	UserID        uuid.UUID `json:"user_id"`
-	ReferenceCode string    `json:"reference_code"`
-	GamesCredited int64     `json:"games_credited"`
+	ID            uuid.UUID   `json:"id"`
+	UserID        uuid.UUID   `json:"user_id"`
+	ReferenceCode string      `json:"reference_code"`
+	GamesCredited int64       `json:"games_credited"`
+	GameIds       []uuid.UUID `json:"game_ids"`
 }
 
 // Admin cancellation (PRD FR27). Releases spots for any booking that was
@@ -64,6 +68,7 @@ func (q *Queries) CancelBooking(ctx context.Context, bookingID uuid.UUID) ([]Can
 			&i.UserID,
 			&i.ReferenceCode,
 			&i.GamesCredited,
+			&i.GameIds,
 		); err != nil {
 			return nil, err
 		}
@@ -264,15 +269,20 @@ released AS (
     WHERE g.id = pg.game_id
     RETURNING g.id
 )
-SELECT e.id, e.user_id, e.reference_code, (SELECT count(*) FROM released) AS games_credited
+SELECT e.id, e.user_id, e.reference_code,
+       (SELECT count(*) FROM released) AS games_credited,
+       -- The games that actually got spots back, for the watchers who asked to
+       -- hear about it. Uncorrelated, so every row carries the same set.
+       COALESCE((SELECT array_agg(id) FROM released), '{}'::uuid[])::uuid[] AS game_ids
 FROM expired e
 `
 
 type ExpireHeldBookingsRow struct {
-	ID            uuid.UUID `json:"id"`
-	UserID        uuid.UUID `json:"user_id"`
-	ReferenceCode string    `json:"reference_code"`
-	GamesCredited int64     `json:"games_credited"`
+	ID            uuid.UUID   `json:"id"`
+	UserID        uuid.UUID   `json:"user_id"`
+	ReferenceCode string      `json:"reference_code"`
+	GamesCredited int64       `json:"games_credited"`
+	GameIds       []uuid.UUID `json:"game_ids"`
 }
 
 // Part A of the expiry/verification race fix. A booking is expired only when
@@ -294,6 +304,7 @@ func (q *Queries) ExpireHeldBookings(ctx context.Context) ([]ExpireHeldBookingsR
 			&i.UserID,
 			&i.ReferenceCode,
 			&i.GamesCredited,
+			&i.GameIds,
 		); err != nil {
 			return nil, err
 		}

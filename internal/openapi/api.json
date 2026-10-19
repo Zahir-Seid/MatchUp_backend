@@ -184,6 +184,7 @@
           "account_disabled",
           "insufficient_capacity",
           "game_unavailable",
+          "game_not_full",
           "series_incomplete",
           "hold_expired",
           "booking_not_pending",
@@ -215,6 +216,7 @@
           "CodeAccountDisabled",
           "CodeInsufficientCapacity",
           "CodeGameUnavailable",
+          "CodeGameNotFull",
           "CodeSeriesIncomplete",
           "CodeHoldExpired",
           "CodeBookingNotPending",
@@ -742,6 +744,14 @@
           },
           "role": {
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "WatchStatus": {
+        "properties": {
+          "watching": {
+            "type": "boolean"
           }
         },
         "type": "object"
@@ -2358,6 +2368,229 @@
         "summary": "Get one game",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/games/{id}/watch": {
+      "delete": {
+        "description": "Drops the caller's watch on a game, so no spot alert will be sent. Deleting a watch that does not exist still answers 204.",
+        "parameters": [
+          {
+            "description": "Game id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found: id is not a UUID"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Stop watching a game",
+        "tags": [
+          "bookings"
+        ]
+      },
+      "get": {
+        "description": "Whether the caller is subscribed to be told when this sold-out game gets a spot back. An id that is not a UUID, or that matches no game, is a 404.",
+        "parameters": [
+          {
+            "description": "Game id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Check my watch on a game",
+        "tags": [
+          "bookings"
+        ]
+      },
+      "post": {
+        "description": "Subscribes the caller to a push when a spot frees up on this sold-out game. Watching a game that still has spots is refused: there is nothing to wait for. Watching twice is harmless. The alert is not a reservation, so booking stays first come, first served, and the watch is spent once the alert goes out.",
+        "parameters": [
+          {
+            "description": "Game id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found: no such game"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "game_not_full or game_unavailable"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Watch a sold-out game",
+        "tags": [
+          "bookings"
         ]
       }
     },

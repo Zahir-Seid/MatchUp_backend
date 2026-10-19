@@ -57,6 +57,7 @@ func TestTemplateCoversEveryType(t *testing.T) {
 	for _, typ := range []string{
 		TypeBookingConfirmed, TypePaymentUnderReview, TypePaymentRejected,
 		TypeHoldExpiring, TypeHoldExpired, TypeGameReminder, TypeGameCancelled,
+		TypeBookingCancelled, TypePaymentAccountsUpdated, TypeGameSpotAvailable,
 	} {
 		if _, ok := templates[typ]; !ok {
 			t.Errorf("no template for type %q", typ)

@@ -36,6 +36,11 @@ const (
 	// already know, and the receipt of a wrong-account payment is too late to
 	// learn it from.
 	TypePaymentAccountsUpdated = "payment_accounts_updated"
+	// TypeGameSpotAvailable tells a user watching a sold-out game that a spot
+	// just freed up (or the admin added capacity). It is spent by the message:
+	// the watch row goes away when the alert does, because the alert is a
+	// heads-up, not a claim on the spot.
+	TypeGameSpotAvailable = "game_spot_available"
 )
 
 // Delivery channels.

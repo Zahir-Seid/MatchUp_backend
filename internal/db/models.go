@@ -114,6 +114,13 @@ type Game struct {
 	UpdatedAt            time.Time  `json:"updated_at"`
 }
 
+type GameWatch struct {
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"user_id"`
+	GameID    uuid.UUID `json:"game_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type Notification struct {
 	ID        uuid.UUID  `json:"id"`
 	UserID    uuid.UUID  `json:"user_id"`

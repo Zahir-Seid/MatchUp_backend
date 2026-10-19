@@ -38,6 +38,7 @@ const (
 	// Catalog and booking.
 	CodeInsufficientCapacity Code = "insufficient_capacity"
 	CodeGameUnavailable      Code = "game_unavailable"
+	CodeGameNotFull          Code = "game_not_full"
 	CodeSeriesIncomplete     Code = "series_incomplete"
 	CodeHoldExpired          Code = "hold_expired"
 	CodeBookingNotPending    Code = "booking_not_pending"

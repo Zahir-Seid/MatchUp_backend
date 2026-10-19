@@ -109,6 +109,23 @@ var templates = map[string]copyTemplate{
 		channels: []string{ChannelPush},
 	},
 
+	TypeGameSpotAvailable: {
+		title: "A spot opened up",
+		body: func(p payload) string {
+			field := p.str("field_name")
+			when := p.when()
+			sentence := "A spot just opened up on a game you asked us to watch"
+			switch {
+			case field != "" && when != "":
+				sentence = fmt.Sprintf("A spot just opened up at %s on %s", field, when)
+			case when != "":
+				sentence = fmt.Sprintf("A spot just opened up for the game on %s", when)
+			}
+			return sentence + ". It is first come, first served, so open the app and book it before someone else does."
+		},
+		channels: []string{ChannelPush},
+	},
+
 	TypeGameReminder: {
 		title: "Your game is coming up",
 		body: func(p payload) string {
