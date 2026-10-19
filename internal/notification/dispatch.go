@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,9 +14,24 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 )
 
+// PushSender delivers one notification to a set of device tokens. Tokens the
+// provider reports as permanently dead are returned so they can be pruned
+// (SDD 11.2).
+type PushSender interface {
+	Send(ctx context.Context, tokens []string, msg PushMessage) (dead []string, err error)
+}
+
 // EmailSender delivers one transactional email.
 type EmailSender interface {
 	Send(ctx context.Context, msg EmailMessage) error
+}
+
+// PushMessage is a push notification.
+type PushMessage struct {
+	Title string
+	Body  string
+	// Data is the deep-link payload; FCM requires string values throughout.
+	Data map[string]string
 }
 
 // EmailMessage is a transactional email.
@@ -31,6 +47,7 @@ type EmailMessage struct {
 type Dispatcher struct {
 	store *db.Store
 	log   *slog.Logger
+	push  PushSender
 	email EmailSender
 	brand Brand
 
@@ -44,6 +61,7 @@ type Dispatcher struct {
 type DispatcherOptions struct {
 	Store      *db.Store
 	Logger     *slog.Logger
+	Push       PushSender
 	Email      EmailSender
 	Brand      Brand
 	BatchSize  int
@@ -69,6 +87,7 @@ func NewDispatcher(opts DispatcherOptions) *Dispatcher {
 	return &Dispatcher{
 		store:      opts.Store,
 		log:        log,
+		push:       opts.Push,
 		email:      opts.Email,
 		brand:      opts.Brand.withDefaults(),
 		batchSize:  batch,
@@ -123,6 +142,8 @@ func (d *Dispatcher) DispatchNotifications(ctx context.Context) (int, error) {
 // deliver sends one delivery on its channel.
 func (d *Dispatcher) deliver(ctx context.Context, row db.ListDeliveryContextsRow) error {
 	switch row.Channel {
+	case ChannelPush:
+		return d.deliverPush(ctx, row)
 	case ChannelEmail:
 		return d.deliverEmail(ctx, row)
 	default:
@@ -130,6 +151,71 @@ func (d *Dispatcher) deliver(ctx context.Context, row db.ListDeliveryContextsRow
 		// marking an unknown channel sent.
 		return fmt.Errorf("unknown delivery channel %q", row.Channel)
 	}
+}
+
+func (d *Dispatcher) deliverPush(ctx context.Context, row db.ListDeliveryContextsRow) error {
+	if d.push == nil {
+		return errChannelDisabled
+	}
+	devices, err := d.store.ListDeviceTokensForUser(ctx, row.Notification.UserID)
+	if err != nil {
+		return fmt.Errorf("list device tokens: %w", err)
+	}
+	if len(devices) == 0 {
+		// No device to push to. The in-app feed still has the notification, so
+		// this is a completed delivery rather than a failure to retry.
+		return nil
+	}
+	tokens := make([]string, 0, len(devices))
+	for _, device := range devices {
+		tokens = append(tokens, device.FcmToken)
+	}
+
+	dead, sendErr := d.push.Send(ctx, tokens, PushMessage{
+		Title: row.Notification.Title,
+		Body:  row.Notification.Body,
+		Data:  pushData(row.Notification),
+	})
+	// Dead tokens are pruned even when the overall send failed: the report is
+	// per-token and independent of the error.
+	for _, token := range dead {
+		if _, err := d.store.DeleteDeviceToken(ctx, token); err != nil {
+			d.log.Warn("could not prune dead device token", slog.Any("error", err))
+		}
+	}
+	return sendErr
+}
+
+// pushData flattens the notification's payload into FCM's string-only data map,
+// adding the type so the app can route without parsing the body.
+func pushData(n db.Notification) map[string]string {
+	data := map[string]string{
+		"type":            n.Type,
+		"notification_id": n.ID.String(),
+	}
+	var payload map[string]any
+	if len(n.Payload) > 0 {
+		if err := json.Unmarshal(n.Payload, &payload); err != nil {
+			return data
+		}
+	}
+	for key, value := range payload {
+		switch v := value.(type) {
+		case string:
+			data[key] = v
+		case float64:
+			data[key] = fmt.Sprintf("%g", v)
+		case bool:
+			data[key] = fmt.Sprintf("%t", v)
+		default:
+			encoded, err := json.Marshal(v)
+			if err != nil {
+				continue
+			}
+			data[key] = string(encoded)
+		}
+	}
+	return data
 }
 
 func (d *Dispatcher) deliverEmail(ctx context.Context, row db.ListDeliveryContextsRow) error {

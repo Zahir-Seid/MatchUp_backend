@@ -10,7 +10,8 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
 )
 
-// Handler exposes the in-app feed. Every route is owner-scoped.
+// Handler exposes the in-app feed and device registration. Every route is
+// owner-scoped.
 type Handler struct {
 	svc *Service
 }
@@ -24,6 +25,10 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Method(http.MethodGet, "/", httpx.Handler(h.list))
 		r.Method(http.MethodPost, "/read-all", httpx.Handler(h.readAll))
 		r.Method(http.MethodPost, "/{id}/read", httpx.Handler(h.read))
+	})
+	r.Route("/devices", func(r chi.Router) {
+		r.Method(http.MethodPost, "/", httpx.Handler(h.registerDevice))
+		r.Method(http.MethodDelete, "/", httpx.Handler(h.unregisterDevice))
 	})
 }
 
@@ -132,5 +137,84 @@ func (h *Handler) readAll(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	httpx.JSON(w, r, http.StatusOK, readAllResponse{MarkedRead: count})
+	return nil
+}
+
+// deviceRequest registers or drops one FCM registration token. Unregistration
+// ignores the platform: the token alone identifies the device.
+type deviceRequest struct {
+	FCMToken string `json:"fcm_token"`
+	Platform string `json:"platform"`
+} //	@name	DeviceRequest
+
+// registerDevice records or refreshes the caller's FCM token.
+//
+//	@Summary		Register a device
+//	@Description	Records or refreshes the FCM registration token for the device the caller is signed in on. The token is unique system-wide: a phone that changes hands moves to the new account rather than delivering one user's notifications to another.
+//	@Tags			notifications, public
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Param			body	body	notification.deviceRequest	true	"FCM registration token and platform"
+//	@Success		204
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		422	{object}	httpx.ErrorEnvelope	"validation_failed: bad token or platform"
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/devices [post]
+func (h *Handler) registerDevice(w http.ResponseWriter, r *http.Request) error {
+	var req deviceRequest
+	if err := httpx.Decode(w, r, &req); err != nil {
+		return err
+	}
+	v := httpx.NewValidator()
+	token := v.Required("fcm_token", req.FCMToken)
+	v.Length("fcm_token", token, 32, 512)
+	platform := v.OneOf("platform", req.Platform, "ios", "android")
+	if err := v.Err(); err != nil {
+		return err
+	}
+
+	principal, err := httpx.MustPrincipal(r.Context())
+	if err != nil {
+		return err
+	}
+	if err := h.svc.RegisterDevice(r.Context(), principal.UserID, token, platform); err != nil {
+		return err
+	}
+	httpx.NoContent(w)
+	return nil
+}
+
+// unregisterDevice drops a token at sign-out. The token is the identifier, so
+// no ownership check is possible or needed: knowing the token is what a device
+// has, and deleting it only stops delivery to that device.
+//
+//	@Summary		Unregister a device
+//	@Description	Stops push delivery to one device, identified by its FCM token. Called at sign-out; deleting a token that matches nothing still answers 204.
+//	@Tags			notifications, public
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Param			body	body	notification.deviceRequest	true	"FCM registration token; platform is ignored"
+//	@Success		204
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		422	{object}	httpx.ErrorEnvelope	"validation_failed: fcm_token is required"
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/devices [delete]
+func (h *Handler) unregisterDevice(w http.ResponseWriter, r *http.Request) error {
+	var req deviceRequest
+	if err := httpx.Decode(w, r, &req); err != nil {
+		return err
+	}
+	if strings.TrimSpace(req.FCMToken) == "" {
+		return httpx.ErrValidation.WithField("fcm_token", "required")
+	}
+	if _, err := httpx.MustPrincipal(r.Context()); err != nil {
+		return err
+	}
+	if err := h.svc.UnregisterDevice(r.Context(), strings.TrimSpace(req.FCMToken)); err != nil {
+		return err
+	}
+	httpx.NoContent(w)
 	return nil
 }

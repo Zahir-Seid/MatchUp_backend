@@ -63,6 +63,15 @@ type BookingSetting struct {
 	UpdatedAt            time.Time  `json:"updated_at"`
 }
 
+type DeviceToken struct {
+	ID         uuid.UUID `json:"id"`
+	UserID     uuid.UUID `json:"user_id"`
+	FcmToken   string    `json:"fcm_token"`
+	Platform   string    `json:"platform"`
+	LastSeenAt time.Time `json:"last_seen_at"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 type EmailOutbox struct {
 	ID            uuid.UUID  `json:"id"`
 	UserID        *uuid.UUID `json:"user_id"`

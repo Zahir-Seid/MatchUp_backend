@@ -9,10 +9,9 @@ import (
 // timeLayout is the timestamp format in API responses.
 const timeLayout = time.RFC3339
 
-// template is the copy for one notification type plus the outbound channels it
-// uses. Copy lives here rather than at each call site so the same event always
-// reads the same way, whichever module raised it. An empty channel list means
-// the event lives only in the app's feed.
+// template is the copy for one notification type plus the channels it goes out
+// on. Copy lives here rather than at each call site so the same event always
+// reads the same way, whichever module raised it.
 //
 // Only English copy exists at this phase; the app is English-only per the
 // design documents. Adding Amharic later means a locale on the user row and a
@@ -71,7 +70,7 @@ var templates = map[string]copyTemplate{
 			}
 			return fmt.Sprintf("Your payment cleared and %s is confirmed. See you on the pitch.", p.reference())
 		},
-		channels: []string{ChannelEmail},
+		channels: []string{ChannelPush, ChannelEmail},
 	},
 
 	TypePaymentUnderReview: {
@@ -79,6 +78,7 @@ var templates = map[string]copyTemplate{
 		body: func(p payload) string {
 			return fmt.Sprintf("We could not automatically match the payment for %s against the bank record, so someone is checking it by hand. Your spots are still held while we do. We will let you know as soon as it is settled.", p.reference())
 		},
+		channels: []string{ChannelPush},
 	},
 
 	TypePaymentRejected: {
@@ -90,7 +90,7 @@ var templates = map[string]copyTemplate{
 			}
 			return fmt.Sprintf("We could not confirm the payment for %s: %s. The spots have been released. Please get in touch if you believe this is a mistake.", p.reference(), reason)
 		},
-		channels: []string{ChannelEmail},
+		channels: []string{ChannelPush, ChannelEmail},
 	},
 
 	TypeHoldExpiring: {
@@ -98,6 +98,7 @@ var templates = map[string]copyTemplate{
 		body: func(p payload) string {
 			return fmt.Sprintf("The spots for %s are held for a few more minutes. Send the payment and submit your transaction reference to keep them.", p.reference())
 		},
+		channels: []string{ChannelPush},
 	},
 
 	TypeHoldExpired: {
@@ -105,6 +106,7 @@ var templates = map[string]copyTemplate{
 		body: func(p payload) string {
 			return fmt.Sprintf("The hold on %s ran out, so the spots went back up for anyone to take. You can book again if they are still free.", p.reference())
 		},
+		channels: []string{ChannelPush},
 	},
 
 	TypeGameReminder: {
@@ -121,6 +123,7 @@ var templates = map[string]copyTemplate{
 				return "Your game is coming up soon. Arrive a few minutes early."
 			}
 		},
+		channels: []string{ChannelPush},
 	},
 
 	TypeBookingCancelled: {
@@ -138,7 +141,7 @@ var templates = map[string]copyTemplate{
 			}
 			return sentence + ". The spots have been released."
 		},
-		channels: []string{ChannelEmail},
+		channels: []string{ChannelPush, ChannelEmail},
 	},
 
 	TypeGameCancelled: {
@@ -155,7 +158,7 @@ var templates = map[string]copyTemplate{
 			}
 			return sentence + ". Someone will be in touch about your booking."
 		},
-		channels: []string{ChannelEmail},
+		channels: []string{ChannelPush, ChannelEmail},
 	},
 }
 
