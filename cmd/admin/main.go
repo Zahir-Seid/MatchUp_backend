@@ -31,6 +31,7 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/notification"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/openapi"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/payment"
 )
 
 // Sign-in limits, keyed by IP. Tighter than the public API's: the population
@@ -121,6 +122,12 @@ func run() error {
 		Notifier:     notifySvc,
 		Logger:       log,
 		MonthlyWeeks: cfg.MonthlyWeekCount,
+		// The receiving accounts the dashboard can override, shown with their
+		// source so an operator can tell a dashboard value from the bootstrap.
+		PaymentAccounts: payment.FallbackAccounts{
+			CBE:      cfg.MerchantCBEAccount,
+			Telebirr: cfg.MerchantTelebirrAccount,
+		},
 	})
 
 	globalLimiter := httpx.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)

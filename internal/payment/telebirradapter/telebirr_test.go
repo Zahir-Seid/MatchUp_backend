@@ -28,10 +28,10 @@ func good() telebirr.Receipt {
 	}
 }
 
-func newTestVerifier() *Verifier { return New(nil, merchantNumber) }
+func newTestVerifier() *Verifier { return New(nil) }
 
 func TestCompleteReceiptVerifies(t *testing.T) {
-	got := newTestVerifier().interpret(good(), money.Santim(15000))
+	got := newTestVerifier().interpret(good(), money.Santim(15000), merchantNumber)
 
 	if got.Outcome != payment.OutcomeVerified {
 		t.Fatalf("outcome = %q, want verified (reasons: %v)", got.Outcome, got.Reasons)
@@ -55,7 +55,7 @@ func TestAmountIsReadFromSettledNotTotal(t *testing.T) {
 	r.SettledAmount = "148.30 Birr"   // short of the booking price
 	r.TotalPaidAmount = "150.00 Birr" // but the payer's total looks right
 
-	got := newTestVerifier().interpret(r, money.Santim(15000))
+	got := newTestVerifier().interpret(r, money.Santim(15000), merchantNumber)
 	if got.Outcome != payment.OutcomeMismatch {
 		t.Fatalf("outcome = %q, want mismatch", got.Outcome)
 	}
@@ -71,7 +71,7 @@ func TestAmountAcceptsPrintedFormatting(t *testing.T) {
 	for _, printed := range []string{"1,500.00 Birr", "ETB 1,500.00", "1500.00", "1,500.00 ብር"} {
 		r := good()
 		r.SettledAmount = printed
-		got := newTestVerifier().interpret(r, money.Santim(150000))
+		got := newTestVerifier().interpret(r, money.Santim(150000), merchantNumber)
 		if got.Outcome != payment.OutcomeVerified {
 			t.Errorf("%q: outcome = %q, want verified (reasons: %v)", printed, got.Outcome, got.Reasons)
 		}
@@ -81,7 +81,7 @@ func TestAmountAcceptsPrintedFormatting(t *testing.T) {
 func TestUnreadableAmountDoesNotVerify(t *testing.T) {
 	r := good()
 	r.SettledAmount = "" // the scrape missed it
-	got := newTestVerifier().interpret(r, money.Santim(15000))
+	got := newTestVerifier().interpret(r, money.Santim(15000), merchantNumber)
 	if got.Outcome != payment.OutcomeMismatch {
 		t.Fatalf("outcome = %q, want mismatch", got.Outcome)
 	}
@@ -95,7 +95,7 @@ func TestOnlySuccessfulStatusVerifies(t *testing.T) {
 	for _, status := range verified {
 		r := good()
 		r.TransactionStatus = status
-		if got := newTestVerifier().interpret(r, money.Santim(15000)); got.Outcome != payment.OutcomeVerified {
+		if got := newTestVerifier().interpret(r, money.Santim(15000), merchantNumber); got.Outcome != payment.OutcomeVerified {
 			t.Errorf("status %q: outcome = %q, want verified (reasons: %v)", status, got.Outcome, got.Reasons)
 		}
 	}
@@ -104,7 +104,7 @@ func TestOnlySuccessfulStatusVerifies(t *testing.T) {
 	for _, status := range rejected {
 		r := good()
 		r.TransactionStatus = status
-		got := newTestVerifier().interpret(r, money.Santim(15000))
+		got := newTestVerifier().interpret(r, money.Santim(15000), merchantNumber)
 		if got.Outcome != payment.OutcomeMismatch {
 			t.Errorf("status %q: outcome = %q, want mismatch", status, got.Outcome)
 		}
@@ -115,7 +115,7 @@ func TestOnlySuccessfulStatusVerifies(t *testing.T) {
 func TestPaymentToAnotherAccountIsMismatch(t *testing.T) {
 	r := good()
 	r.CreditedPartyAccountNo = "251911999888"
-	got := newTestVerifier().interpret(r, money.Santim(15000))
+	got := newTestVerifier().interpret(r, money.Santim(15000), merchantNumber)
 
 	if got.Outcome != payment.OutcomeMismatch {
 		t.Fatalf("outcome = %q, want mismatch", got.Outcome)
@@ -132,7 +132,7 @@ func TestPaymentToAnotherAccountIsMismatch(t *testing.T) {
 func TestLocalAndInternationalNumberFormsMatch(t *testing.T) {
 	r := good()
 	r.CreditedPartyAccountNo = "0911223344"
-	if got := newTestVerifier().interpret(r, money.Santim(15000)); got.PayeeCheck != payment.PayeeMatch {
+	if got := newTestVerifier().interpret(r, money.Santim(15000), merchantNumber); got.PayeeCheck != payment.PayeeMatch {
 		t.Errorf("payee = %q, want match for the local form of the same number", got.PayeeCheck)
 	}
 }
@@ -140,7 +140,7 @@ func TestLocalAndInternationalNumberFormsMatch(t *testing.T) {
 func TestMissingCreditedAccountDoesNotVerify(t *testing.T) {
 	r := good()
 	r.CreditedPartyAccountNo = ""
-	got := newTestVerifier().interpret(r, money.Santim(15000))
+	got := newTestVerifier().interpret(r, money.Santim(15000), merchantNumber)
 	if got.Outcome != payment.OutcomeMismatch {
 		t.Fatalf("outcome = %q, want mismatch", got.Outcome)
 	}
@@ -154,7 +154,7 @@ func TestMissingCreditedAccountDoesNotVerify(t *testing.T) {
 func TestIncompleteReceiptIsRejectedBeforeAnyOtherCheck(t *testing.T) {
 	r := good()
 	r.ReceiptNo = ""
-	got := newTestVerifier().interpret(r, money.Santim(15000))
+	got := newTestVerifier().interpret(r, money.Santim(15000), merchantNumber)
 	if got.Outcome != payment.OutcomeMismatch {
 		t.Fatalf("outcome = %q, want mismatch", got.Outcome)
 	}
@@ -169,14 +169,14 @@ func TestEveryFailureIsListedTogether(t *testing.T) {
 	r.TransactionStatus = "Pending"
 	r.CreditedPartyAccountNo = "251911999888"
 
-	got := newTestVerifier().interpret(r, money.Santim(15000))
+	got := newTestVerifier().interpret(r, money.Santim(15000), merchantNumber)
 	if len(got.Reasons) != 3 {
 		t.Fatalf("reasons = %v, want all three (amount, status, payee)", got.Reasons)
 	}
 }
 
 func TestUnconfiguredMerchantNumberNeverVerifies(t *testing.T) {
-	got := New(nil, "").interpret(good(), money.Santim(15000))
+	got := New(nil).interpret(good(), money.Santim(15000), "")
 	if got.Outcome == payment.OutcomeVerified {
 		t.Fatal("no merchant number configured must not verify")
 	}
@@ -187,7 +187,7 @@ func TestUnconfiguredMerchantNumberNeverVerifies(t *testing.T) {
 
 func TestRawIsTheReceipt(t *testing.T) {
 	r := good()
-	got := newTestVerifier().interpret(r, money.Santim(15000))
+	got := newTestVerifier().interpret(r, money.Santim(15000), merchantNumber)
 	stored, ok := got.Raw.(telebirr.Receipt)
 	if !ok {
 		t.Fatalf("Raw = %T, want telebirr.Receipt", got.Raw)
@@ -227,7 +227,7 @@ func TestClassifyOnlyMalformedReferenceIsPermanent(t *testing.T) {
 }
 
 func TestVerifyWithoutClientFails(t *testing.T) {
-	if _, err := New(nil, merchantNumber).Verify(t.Context(), payment.VerifyRequest{Reference: "CH1"}); err == nil {
+	if _, err := New(nil).Verify(t.Context(), payment.VerifyRequest{Reference: "CH1", MerchantAccount: merchantNumber}); err == nil {
 		t.Fatal("a verifier with no client must report an error, not a verdict")
 	}
 }

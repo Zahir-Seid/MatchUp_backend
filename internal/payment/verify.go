@@ -29,6 +29,7 @@ type VerifyService struct {
 	log       *slog.Logger
 	notifier  Notifier
 	verifiers map[string]Verifier
+	accounts  func(ctx context.Context, method string) (string, error)
 
 	batchSize   int32
 	concurrency int
@@ -45,6 +46,11 @@ type VerifyOptions struct {
 	Notifier Notifier
 	// Verifiers are the payment channels, keyed by their Method().
 	Verifiers []Verifier
+	// Accounts resolves the receiving account a method's receipts must be
+	// paid into, read per job so a dashboard edit applies without a restart.
+	// Nil resolves to the empty string, which makes every payee check
+	// inconclusive.
+	Accounts  func(ctx context.Context, method string) (string, error)
 	BatchSize int
 	// Concurrency is how many payments in a claimed batch are verified at
 	// once. A verification is a slow call to a bank -- tens of seconds in the
@@ -93,6 +99,7 @@ func NewVerifyService(opts VerifyOptions) *VerifyService {
 		log:         log,
 		notifier:    opts.Notifier,
 		verifiers:   verifiers,
+		accounts:    opts.Accounts,
 		batchSize:   batch,
 		concurrency: concurrency,
 		staleAfter:  stale,
@@ -182,15 +189,28 @@ func (s *VerifyService) runJob(ctx context.Context, job db.PaymentVerificationJo
 		return
 	}
 
+	// The receiving account decides whether a confirmed transfer counts, so an
+	// unreadable settings row is retried rather than guessed at.
+	merchantAccount := ""
+	if s.accounts != nil {
+		resolved, err := s.accounts(ctx, row.Method)
+		if err != nil {
+			s.retry(ctx, job, row, fmt.Errorf("resolve merchant account: %w", err), log)
+			return
+		}
+		merchantAccount = resolved
+	}
+
 	suffix := ""
 	if row.AccountSuffix != nil {
 		suffix = *row.AccountSuffix
 	}
 
 	result, err := verifier.Verify(ctx, VerifyRequest{
-		Reference:      row.TransactionReference,
-		AccountSuffix:  suffix,
-		ExpectedAmount: money.Santim(row.ExpectedAmountSantim),
+		Reference:       row.TransactionReference,
+		AccountSuffix:   suffix,
+		ExpectedAmount:  money.Santim(row.ExpectedAmountSantim),
+		MerchantAccount: merchantAccount,
 	})
 	if err != nil {
 		if message, permanent := PermanentMessage(err); permanent {

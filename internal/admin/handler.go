@@ -66,6 +66,12 @@ func (h *Handler) Routes(r chi.Router) {
 		// public API's quote path, edited here.
 		r.Method(http.MethodGet, "/booking", httpx.Handler(h.getBookingSettings))
 		r.Method(http.MethodPatch, "/booking", httpx.Handler(h.updateBookingSettings))
+		// The receiving accounts payments are verified against. The public
+		// API serves them to payers and the worker checks receipts against
+		// them, so an edit here redirects money -- every other admin is
+		// alerted about it.
+		r.Method(http.MethodGet, "/payments", httpx.Handler(h.getPaymentSettings))
+		r.Method(http.MethodPatch, "/payments", httpx.Handler(h.updatePaymentSettings))
 	})
 
 	r.Route("/reports", func(r chi.Router) {

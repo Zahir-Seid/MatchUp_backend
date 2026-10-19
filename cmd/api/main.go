@@ -119,6 +119,13 @@ func run() error {
 		// Stamped onto every verification job this binary queues; the worker
 		// spends the budget.
 		MaxAttempts: cfg.VerifyMaxAttempts,
+		// Payment instructions show these to the payer; they are the same
+		// values the worker checks receipts against (SDD 8.4).
+		FallbackAccounts: payment.FallbackAccounts{
+			CBE:      cfg.MerchantCBEAccount,
+			Telebirr: cfg.MerchantTelebirrAccount,
+		},
+		MerchantName: cfg.AppName,
 	})
 	// The email channel is gated on a configured sender: without one, queueing
 	// email deliveries would only manufacture rows nothing can ever send.

@@ -25,19 +25,11 @@ import (
 
 // Verifier checks CBE transfers. Construct it with New.
 type Verifier struct {
-	// merchantAccount is the platform's own CBE account, compared against the
-	// receiver on every receipt. Without it no payee check is possible and the
-	// verdict can only ever be inconclusive.
-	merchantAccount string
-	opts            []cbeverifier.Option
+	opts []cbeverifier.Option
 }
 
 // Options configures the adapter.
 type Options struct {
-	// MerchantAccount is the business's receiving CBE account number. The
-	// receipt reports it masked ("1000****6789"), so payee.ComparePayee
-	// compares the digits both sides actually show.
-	MerchantAccount string
 	// Timeout bounds a single HTTP round trip to CBE. Zero uses the library
 	// default (30s).
 	Timeout time.Duration
@@ -59,9 +51,12 @@ type Options struct {
 	InsecureSkipTLS bool
 }
 
-// New builds a CBE verifier. A blank MerchantAccount is accepted rather than
-// rejected — the platform can run without one — but every payment then parks for
-// review with an inconclusive payee, so it is a misconfiguration in practice.
+// New builds a CBE verifier. The receiving account is per request
+// (VerifyRequest.MerchantAccount), resolved by the caller: the dashboard
+// settings value once an admin has saved one, the environment bootstrap
+// otherwise. A blank value is accepted rather than rejected — the worker can
+// still run — but every payment then parks for review with an inconclusive
+// payee, so it is a misconfiguration in practice.
 func New(o Options) *Verifier {
 	var opts []cbeverifier.Option
 	if o.Timeout > 0 {
@@ -80,7 +75,7 @@ func New(o Options) *Verifier {
 	if o.InsecureSkipTLS {
 		opts = append(opts, cbeverifier.WithInsecureSkipVerify())
 	}
-	return &Verifier{merchantAccount: o.MerchantAccount, opts: opts}
+	return &Verifier{opts: opts}
 }
 
 // Method reports the payments.method value this verifier handles.
@@ -101,13 +96,13 @@ func (v *Verifier) Verify(ctx context.Context, req payment.VerifyRequest) (payme
 		// panicking keeps a library bug from losing a real payment.
 		return payment.VerifyResult{}, errors.New("cbe: verifier returned no result")
 	}
-	return v.interpret(res), nil
+	return v.interpret(res, req.MerchantAccount), nil
 }
 
-// interpret turns a library Result into a verdict. The library's own Status is
-// necessary but not sufficient for OutcomeVerified: the payee check runs on top
-// of it.
-func (v *Verifier) interpret(res *cbeverifier.Result) payment.VerifyResult {
+// interpret turns a library Result into a verdict, comparing the receiver
+// against merchantAccount. The library's own Status is necessary but not
+// sufficient for OutcomeVerified: the payee check runs on top of it.
+func (v *Verifier) interpret(res *cbeverifier.Result, merchantAccount string) payment.VerifyResult {
 	out := payment.VerifyResult{PayeeCheck: payment.PayeeUnknown, Raw: res}
 
 	if res.Details != nil {
@@ -115,7 +110,7 @@ func (v *Verifier) interpret(res *cbeverifier.Result) payment.VerifyResult {
 			out.Amount = amount
 			out.AmountKnown = true
 		}
-		out.PayeeCheck = payment.ComparePayee(res.Details.ReceiverAccount, v.merchantAccount)
+		out.PayeeCheck = payment.ComparePayee(res.Details.ReceiverAccount, merchantAccount)
 	}
 
 	switch res.Status {

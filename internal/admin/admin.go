@@ -25,6 +25,7 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/notification"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/payment"
 )
 
 // Notifier is the slice of the notification service this package needs, kept as
@@ -45,6 +46,11 @@ type Service struct {
 	// to make one; reading the same configured number keeps the two ends of
 	// that rule from drifting apart.
 	monthlyWeeks int32
+
+	// paymentAccounts are the environment-configured receiving accounts. The
+	// payment settings view reports them, and their source, wherever the
+	// dashboard has not saved an override.
+	paymentAccounts payment.FallbackAccounts
 }
 
 // Options configures the admin service.
@@ -57,6 +63,9 @@ type Options struct {
 	Logger   *slog.Logger
 	// MonthlyWeeks is the configured length of a monthly plan. Defaults to 4.
 	MonthlyWeeks int
+	// PaymentAccounts are the environment-configured receiving accounts, the
+	// bootstrap values the dashboard can override.
+	PaymentAccounts payment.FallbackAccounts
 }
 
 // NewService builds the admin service.
@@ -70,11 +79,12 @@ func NewService(opts Options) *Service {
 		weeks = 4
 	}
 	return &Service{
-		store:        opts.Store,
-		audit:        opts.Audit,
-		notifier:     opts.Notifier,
-		log:          log,
-		monthlyWeeks: weeks,
+		store:           opts.Store,
+		audit:           opts.Audit,
+		notifier:        opts.Notifier,
+		log:             log,
+		monthlyWeeks:    weeks,
+		paymentAccounts: opts.PaymentAccounts,
 	}
 }
 

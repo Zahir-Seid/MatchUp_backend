@@ -13,7 +13,7 @@ import (
 
 const merchant = "1000123456789"
 
-func newTestVerifier() *Verifier { return New(Options{MerchantAccount: merchant}) }
+func newTestVerifier() *Verifier { return New(Options{}) }
 
 func TestValidReceiptToOurAccountVerifies(t *testing.T) {
 	got := newTestVerifier().interpret(&cbeverifier.Result{
@@ -23,7 +23,7 @@ func TestValidReceiptToOurAccountVerifies(t *testing.T) {
 			ReceiverAccount: "1000****6789",
 			Amount:          150.00,
 		},
-	})
+	}, merchant)
 
 	if got.Outcome != payment.OutcomeVerified {
 		t.Fatalf("outcome = %q, want verified (reasons: %v)", got.Outcome, got.Reasons)
@@ -49,7 +49,7 @@ func TestValidReceiptToAnotherAccountIsMismatch(t *testing.T) {
 			ReceiverAccount: "1000****1111",
 			Amount:          150.00,
 		},
-	})
+	}, merchant)
 
 	if got.Outcome != payment.OutcomeMismatch {
 		t.Fatalf("outcome = %q, want mismatch", got.Outcome)
@@ -69,7 +69,7 @@ func TestValidReceiptWithUnreadablePayeeIsNotVerified(t *testing.T) {
 		Status:  cbeverifier.StatusValid,
 		Valid:   true,
 		Details: &cbeverifier.TransactionDetails{ReceiverAccount: "1000****", Amount: 150.00},
-	})
+	}, merchant)
 
 	if got.Outcome != payment.OutcomeMismatch {
 		t.Fatalf("outcome = %q, want mismatch", got.Outcome)
@@ -80,7 +80,7 @@ func TestValidReceiptWithUnreadablePayeeIsNotVerified(t *testing.T) {
 }
 
 func TestMissingDetailsLeavesPayeeUnknown(t *testing.T) {
-	got := newTestVerifier().interpret(&cbeverifier.Result{Status: cbeverifier.StatusValid, Valid: true})
+	got := newTestVerifier().interpret(&cbeverifier.Result{Status: cbeverifier.StatusValid, Valid: true}, merchant)
 
 	if got.Outcome != payment.OutcomeMismatch {
 		t.Fatalf("outcome = %q, want mismatch", got.Outcome)
@@ -100,7 +100,7 @@ func TestMismatchCarriesFieldReasons(t *testing.T) {
 		Mismatches: []cbeverifier.Mismatch{
 			{Field: "amount", Provided: 150.00, Official: 100.00},
 		},
-	})
+	}, merchant)
 
 	if got.Outcome != payment.OutcomeMismatch {
 		t.Fatalf("outcome = %q, want mismatch", got.Outcome)
@@ -115,14 +115,14 @@ func TestMismatchCarriesFieldReasons(t *testing.T) {
 }
 
 func TestMismatchWithoutNamedFieldStillExplainsItself(t *testing.T) {
-	got := newTestVerifier().interpret(&cbeverifier.Result{Status: cbeverifier.StatusMismatch})
+	got := newTestVerifier().interpret(&cbeverifier.Result{Status: cbeverifier.StatusMismatch}, merchant)
 	if len(got.Reasons) == 0 {
 		t.Fatal("an admin must never see an empty reason list")
 	}
 }
 
 func TestNotFound(t *testing.T) {
-	got := newTestVerifier().interpret(&cbeverifier.Result{Status: cbeverifier.StatusNotFound})
+	got := newTestVerifier().interpret(&cbeverifier.Result{Status: cbeverifier.StatusNotFound}, merchant)
 	if got.Outcome != payment.OutcomeNotFound {
 		t.Fatalf("outcome = %q, want not_found", got.Outcome)
 	}
@@ -136,7 +136,7 @@ func TestUnknownStatusIsNotAPass(t *testing.T) {
 	got := newTestVerifier().interpret(&cbeverifier.Result{
 		Status:  cbeverifier.Status("under_review"),
 		Details: &cbeverifier.TransactionDetails{ReceiverAccount: "1000****6789", Amount: 150.00},
-	})
+	}, merchant)
 	if got.Outcome != payment.OutcomeMismatch {
 		t.Fatalf("outcome = %q, want mismatch", got.Outcome)
 	}
@@ -144,7 +144,7 @@ func TestUnknownStatusIsNotAPass(t *testing.T) {
 
 func TestRawIsTheLibraryResult(t *testing.T) {
 	res := &cbeverifier.Result{Status: cbeverifier.StatusNotFound, Backend: cbeverifier.BackendJSONAPI}
-	if got := newTestVerifier().interpret(res); got.Raw != res {
+	if got := newTestVerifier().interpret(res, merchant); got.Raw != res {
 		t.Error("Raw must hold the library's own result verbatim (PRD J7)")
 	}
 }
@@ -191,7 +191,7 @@ func TestUnconfiguredMerchantAccountNeverVerifies(t *testing.T) {
 		Status:  cbeverifier.StatusValid,
 		Valid:   true,
 		Details: &cbeverifier.TransactionDetails{ReceiverAccount: "1000****6789", Amount: 150.00},
-	})
+	}, "")
 	if got.Outcome == payment.OutcomeVerified {
 		t.Fatal("no merchant account configured must not verify")
 	}

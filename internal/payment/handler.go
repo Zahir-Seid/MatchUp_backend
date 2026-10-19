@@ -26,9 +26,12 @@ func NewHandler(svc *Service, strictLimit func(http.Handler) http.Handler) *Hand
 	return &Handler{svc: svc, strict: strictLimit}
 }
 
-// Routes mounts payment submission under the booking it pays for. Mount behind
-// httpx.RequireAuth.
+// Routes mounts payment submission under the booking it pays for, and the
+// display-only payment instructions beside it. Mount behind httpx.RequireAuth.
 func (h *Handler) Routes(r chi.Router) {
+	// Read-only and cheap -- no outbound call -- so it is not throttled the
+	// way a submission is.
+	r.Method(http.MethodGet, "/payment-instructions", httpx.Handler(h.instructions))
 	r.Group(func(r chi.Router) {
 		r.Use(h.strict)
 		r.Method(http.MethodPost, "/bookings/{id}/payment", httpx.Handler(h.submit))
@@ -138,4 +141,24 @@ func (h *Handler) submit(w http.ResponseWriter, r *http.Request) error {
 // the shape check and go straight to classification.
 func isPastedURL(reference string) bool {
 	return len(reference) > 8 && (reference[:7] == "http://" || reference[:8] == "https://")
+}
+
+// instructions returns where to send the money for each payment method.
+//
+//	@Summary		Where to send the money
+//	@Description	The receiving accounts a payer should send money to, one entry per payment method, read from the platform settings. These are the same values the worker checks receipts against, so the app can never show an account the backend would not verify.
+//	@Tags			payments, public
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Success		200	{object}	payment.PaymentInstructions
+//	@Failure		401	{object}	httpx.ErrorEnvelope
+//	@Failure		429	{object}	httpx.ErrorEnvelope
+//	@Failure		500	{object}	httpx.ErrorEnvelope
+//	@Router			/payment-instructions [get]
+func (h *Handler) instructions(w http.ResponseWriter, r *http.Request) error {
+	if _, err := httpx.MustPrincipal(r.Context()); err != nil {
+		return err
+	}
+	httpx.JSON(w, r, http.StatusOK, h.svc.Instructions(r.Context()))
+	return nil
 }

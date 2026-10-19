@@ -24,6 +24,12 @@ type Service struct {
 	now   func() time.Time
 	// maxAttempts is the retry budget stamped onto each verification job.
 	maxAttempts int32
+	// fallbacks are the environment-configured receiving accounts. Payment
+	// instructions fall back to them wherever the dashboard has not saved its
+	// own value.
+	fallbacks FallbackAccounts
+	// merchantName is the account holder the instructions name (APP_NAME).
+	merchantName string
 }
 
 // Options configures the submission service.
@@ -35,6 +41,12 @@ type Options struct {
 	// before it fails permanently and the booking parks for human review.
 	// Defaults to 5.
 	MaxAttempts int
+	// FallbackAccounts are the environment-configured receiving accounts,
+	// shown to payers wherever the dashboard has not saved its own value.
+	FallbackAccounts FallbackAccounts
+	// MerchantName is the account holder name shown in payment instructions.
+	// Defaults to "MatchUp".
+	MerchantName string
 }
 
 // NewService builds the submission service.
@@ -51,7 +63,18 @@ func NewService(opts Options) *Service {
 	if attempts <= 0 {
 		attempts = 5
 	}
-	return &Service{store: opts.Store, log: log, now: now, maxAttempts: attempts}
+	name := strings.TrimSpace(opts.MerchantName)
+	if name == "" {
+		name = "MatchUp"
+	}
+	return &Service{
+		store:        opts.Store,
+		log:          log,
+		now:          now,
+		maxAttempts:  attempts,
+		fallbacks:    opts.FallbackAccounts,
+		merchantName: name,
+	}
 }
 
 // SubmitInput is one payment submission. There is deliberately no amount field:

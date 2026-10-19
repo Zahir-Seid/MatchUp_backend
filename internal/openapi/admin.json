@@ -1026,6 +1026,29 @@
         },
         "type": "object"
       },
+      "PaymentSettings": {
+        "properties": {
+          "merchant_cbe_account": {
+            "type": "string"
+          },
+          "merchant_cbe_account_source": {
+            "type": "string"
+          },
+          "merchant_telebirr_account": {
+            "type": "string"
+          },
+          "merchant_telebirr_account_source": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "updated_by": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "RefreshRequest": {
         "properties": {
           "refresh_token": {
@@ -1212,6 +1235,20 @@
             "type": "integer"
           },
           "starts_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdatePaymentSettingsRequest": {
+        "properties": {
+          "merchant_cbe_account": {
+            "type": "string"
+          },
+          "merchant_telebirr_account": {
+            "type": "string"
+          },
+          "reason": {
             "type": "string"
           }
         },
@@ -4197,6 +4234,168 @@
           }
         ],
         "summary": "Update booking settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/settings/payments": {
+      "get": {
+        "description": "The receiving accounts the worker checks receipts against and the public API shows payers, with where each effective value comes from: \"db\" once an admin has saved one, \"env\" while it inherits the environment bootstrap.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentSettings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Get payment settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "description": "A partial update of the receiving accounts. Each value is 8-20 digits, or an empty string to clear the override and fall back to the environment bootstrap. A patch that changes nothing answers with the settings as they stand and writes no audit entry. The reason is recorded in the audit log, and every other admin is alerted.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePaymentSettingsRequest"
+              }
+            }
+          },
+          "description": "Accounts to change",
+          "required": true,
+          "x-originalParamName": "body"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentSettings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed JSON body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed, or no changes were given"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Update payment settings",
         "tags": [
           "settings"
         ]

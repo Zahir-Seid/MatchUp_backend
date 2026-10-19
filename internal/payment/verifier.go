@@ -50,6 +50,12 @@ type VerifyRequest struct {
 	AccountSuffix string
 	// ExpectedAmount is read from the booking, never from the client (FR16).
 	ExpectedAmount money.Santim
+	// MerchantAccount is the platform's receiving account for this method,
+	// resolved when the job runs: the dashboard settings value once an admin
+	// has saved one, the environment bootstrap otherwise. The adapter compares
+	// the receipt's payee against it; empty means no payee check is possible
+	// and the verdict can only be inconclusive.
+	MerchantAccount string
 }
 
 // VerifyOutcome is the verifier's verdict.

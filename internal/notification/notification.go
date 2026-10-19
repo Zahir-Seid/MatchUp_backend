@@ -31,6 +31,11 @@ const (
 	// different event from a hold lapsing or a payment being rejected: a person
 	// decided it, and the customer may be owed a refund.
 	TypeBookingCancelled = "booking_cancelled"
+	// TypePaymentAccountsUpdated tells the admins that the receiving accounts
+	// changed. It goes to every admin except the one who made the edit; they
+	// already know, and the receipt of a wrong-account payment is too late to
+	// learn it from.
+	TypePaymentAccountsUpdated = "payment_accounts_updated"
 )
 
 // Delivery channels.

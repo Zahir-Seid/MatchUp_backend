@@ -111,19 +111,22 @@ type Config struct {
 // Need selects which configuration groups must be present and valid. A binary
 // that never signs a token should not fail to boot over a missing signing key.
 type Need struct {
-	HTTP    bool
-	DB      bool
-	Auth    bool
-	Admin   bool
-	Payment bool
-	Notify  bool
+	HTTP  bool
+	DB    bool
+	Auth  bool
+	Admin bool
+	// Accounts requires the merchant receiving accounts. Every binary needs
+	// them: the worker checks receipts against them, and the public and admin
+	// APIs show them to payers and operators.
+	Accounts bool
+	Notify   bool
 }
 
 // NeedServe, NeedAdmin and NeedWorker are the three real call sites.
 var (
-	NeedServe  = Need{HTTP: true, DB: true, Auth: true}
-	NeedAdmin  = Need{HTTP: true, DB: true, Admin: true}
-	NeedWorker = Need{DB: true, Payment: true, Notify: true}
+	NeedServe  = Need{HTTP: true, DB: true, Auth: true, Accounts: true}
+	NeedAdmin  = Need{HTTP: true, DB: true, Admin: true, Accounts: true}
+	NeedWorker = Need{DB: true, Accounts: true, Notify: true}
 )
 
 // Load reads configuration from the environment and validates the groups named
@@ -306,12 +309,12 @@ func Load(need Need) (*Config, error) {
 		}
 	}
 
-	if need.Payment {
+	if need.Accounts {
 		if c.MerchantCBEAccount == "" {
-			fail("MERCHANT_CBE_ACCOUNT is required (payee check)")
+			fail("MERCHANT_CBE_ACCOUNT is required (shown to payers and checked on receipts)")
 		}
 		if c.MerchantTelebirrAccount == "" {
-			fail("MERCHANT_TELEBIRR_ACCOUNT is required (payee check)")
+			fail("MERCHANT_TELEBIRR_ACCOUNT is required (shown to payers and checked on receipts)")
 		}
 	}
 

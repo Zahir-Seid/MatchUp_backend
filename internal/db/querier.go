@@ -113,6 +113,8 @@ type Querier interface {
 	// Idempotent replay: a resubmission carrying a key this user already used
 	// returns the original payment instead of creating a second one.
 	GetPaymentByIdempotencyKey(ctx context.Context, arg GetPaymentByIdempotencyKeyParams) (Payment, error)
+	// The dashboard-editable receiving accounts. One row; see the migration.
+	GetPaymentSettings(ctx context.Context) (PaymentSetting, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash []byte) (RefreshToken, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
@@ -122,6 +124,9 @@ type Querier interface {
 	IncreaseGameCapacity(ctx context.Context, arg IncreaseGameCapacityParams) (Game, error)
 	InvalidateUserPasswordResetTokens(ctx context.Context, userID uuid.UUID) (int64, error)
 	ListActiveFields(ctx context.Context) ([]Field, error)
+	// The other admins to alert when the receiving accounts change: everyone with
+	// the admin role except the actor, who already knows.
+	ListAdminUserIDs(ctx context.Context, excludeID uuid.UUID) ([]uuid.UUID, error)
 	ListAllFields(ctx context.Context) ([]Field, error)
 	ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]ListAuditLogsRow, error)
 	// Every covered game for a set of bookings in one round trip, so "My Bookings"
@@ -213,6 +218,7 @@ type Querier interface {
 	UpdateBookingSettings(ctx context.Context, arg UpdateBookingSettingsParams) (BookingSetting, error)
 	UpdateField(ctx context.Context, arg UpdateFieldParams) (Field, error)
 	UpdateGame(ctx context.Context, arg UpdateGameParams) (Game, error)
+	UpdatePaymentSettings(ctx context.Context, arg UpdatePaymentSettingsParams) (PaymentSetting, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenParams) (DeviceToken, error)
 	// The headline operational metric (PRD 15): what share of payments cleared

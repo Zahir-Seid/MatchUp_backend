@@ -446,6 +446,40 @@
         },
         "type": "object"
       },
+      "PaymentInstructions": {
+        "properties": {
+          "methods": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethod"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "PaymentMethod": {
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "instructions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "label": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "PaymentRequest": {
         "properties": {
           "account_suffix": {
@@ -2598,6 +2632,62 @@
         "summary": "Mark a notification read",
         "tags": [
           "notifications"
+        ]
+      }
+    },
+    "/payment-instructions": {
+      "get": {
+        "description": "The receiving accounts a payer should send money to, one entry per payment method, read from the platform settings. These are the same values the worker checks receipts against, so the app can never show an account the backend would not verify.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentInstructions"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Where to send the money",
+        "tags": [
+          "payments"
         ]
       }
     }

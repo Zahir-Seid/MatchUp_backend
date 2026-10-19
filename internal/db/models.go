@@ -175,6 +175,14 @@ type Payment struct {
 	UpdatedAt            time.Time  `json:"updated_at"`
 }
 
+type PaymentSetting struct {
+	ID                      bool       `json:"id"`
+	MerchantCbeAccount      string     `json:"merchant_cbe_account"`
+	MerchantTelebirrAccount string     `json:"merchant_telebirr_account"`
+	UpdatedBy               *uuid.UUID `json:"updated_by"`
+	UpdatedAt               time.Time  `json:"updated_at"`
+}
+
 type PaymentVerificationJob struct {
 	ID            uuid.UUID  `json:"id"`
 	PaymentID     uuid.UUID  `json:"payment_id"`

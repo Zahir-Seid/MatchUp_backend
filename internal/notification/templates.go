@@ -160,6 +160,23 @@ var templates = map[string]copyTemplate{
 		},
 		channels: []string{ChannelPush, ChannelEmail},
 	},
+	TypePaymentAccountsUpdated: {
+		title: "Payment accounts changed",
+		body: func(p payload) string {
+			var accounts []string
+			if cbe := p.str("cbe_account"); cbe != "" {
+				accounts = append(accounts, "CBE: "+cbe)
+			}
+			if telebirr := p.str("telebirr_account"); telebirr != "" {
+				accounts = append(accounts, "Telebirr: "+telebirr)
+			}
+			if len(accounts) == 0 {
+				return "The receiving accounts payments are verified against were reset to the environment configuration. If this was not you or your team, check the audit log now."
+			}
+			return fmt.Sprintf("The receiving accounts payments are verified against changed to %s. If this was not you or your team, check the audit log and the account numbers now.", strings.Join(accounts, "; "))
+		},
+		channels: []string{ChannelEmail},
+	},
 }
 
 // render produces the title and body for a payload.

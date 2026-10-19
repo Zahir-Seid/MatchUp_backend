@@ -97,11 +97,44 @@ func run() error {
 		return err
 	}
 
+	// resolveAccount reads the receiving account a method must be verified
+	// against: the dashboard value once an admin has saved one, the
+	// environment bootstrap otherwise. It is read per job, so an edit applies
+	// to the next verification without a restart, and an override is logged so
+	// a stale environment value cannot silently win.
+	fallbacks := payment.FallbackAccounts{
+		CBE:      cfg.MerchantCBEAccount,
+		Telebirr: cfg.MerchantTelebirrAccount,
+	}
+	resolveAccount := func(ctx context.Context, method string) (string, error) {
+		row, err := store.GetPaymentSettings(ctx)
+		if err != nil {
+			if !db.IsNoRows(err) {
+				return "", fmt.Errorf("read payment settings: %w", err)
+			}
+			// An unseeded row (a restored or truncated database, most
+			// likely): the environment accounts are still the full answer.
+			log.Warn("payment settings row missing; using the environment accounts",
+				slog.Any("error", err))
+		}
+		account, source := payment.ResolveAccount(row, method, fallbacks)
+		if source == payment.SourceDatabase {
+			if env := fallbacks.ForMethod(method); account != env {
+				log.Warn("receiving account comes from the dashboard settings, not the environment",
+					slog.String("method", method),
+					slog.String("account", account),
+					slog.String("environment_account", env))
+			}
+		}
+		return account, nil
+	}
+
 	verifySvc := payment.NewVerifyService(payment.VerifyOptions{
 		Store:      store,
 		Logger:     log,
 		Notifier:   notifySvc,
 		Verifiers:  verifiers,
+		Accounts:   resolveAccount,
 		BatchSize:  cfg.VerifyBatchSize,
 		StaleAfter: cfg.StuckJobThreshold,
 	})
@@ -143,8 +176,7 @@ func run() error {
 // its payments claimed and dropped with no outcome at all.
 func buildVerifiers(cfg *config.Config, log *slog.Logger) ([]payment.Verifier, error) {
 	cbe := cbeadapter.New(cbeadapter.Options{
-		MerchantAccount: cfg.MerchantCBEAccount,
-		Timeout:         cfg.CBETimeout,
+		Timeout: cfg.CBETimeout,
 		// Config refuses this outside APP_ENV=local. Logged loudly even there,
 		// because with it on a receipt is forgeable by anyone on the network
 		// path and nothing else in the system would show that.
@@ -168,7 +200,7 @@ func buildVerifiers(cfg *config.Config, log *slog.Logger) ([]payment.Verifier, e
 
 	return []payment.Verifier{
 		cbe,
-		telebirradapter.New(client, cfg.MerchantTelebirrAccount),
+		telebirradapter.New(client),
 	}, nil
 }
 

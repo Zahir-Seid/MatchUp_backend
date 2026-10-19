@@ -30,6 +30,51 @@ func (q *Queries) GetBookingSettings(ctx context.Context) (BookingSetting, error
 	return i, err
 }
 
+const getPaymentSettings = `-- name: GetPaymentSettings :one
+
+SELECT id, merchant_cbe_account, merchant_telebirr_account, updated_by, updated_at FROM payment_settings WHERE id
+`
+
+// The dashboard-editable receiving accounts. One row; see the migration.
+func (q *Queries) GetPaymentSettings(ctx context.Context) (PaymentSetting, error) {
+	row := q.db.QueryRow(ctx, getPaymentSettings)
+	var i PaymentSetting
+	err := row.Scan(
+		&i.ID,
+		&i.MerchantCbeAccount,
+		&i.MerchantTelebirrAccount,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listAdminUserIDs = `-- name: ListAdminUserIDs :many
+SELECT id FROM users WHERE role = 'admin' AND id <> $1::uuid ORDER BY id
+`
+
+// The other admins to alert when the receiving accounts change: everyone with
+// the admin role except the actor, who already knows.
+func (q *Queries) ListAdminUserIDs(ctx context.Context, excludeID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listAdminUserIDs, excludeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateBookingSettings = `-- name: UpdateBookingSettings :one
 UPDATE booking_settings
 SET monthly_discount_bps   = $1,
@@ -53,6 +98,35 @@ func (q *Queries) UpdateBookingSettings(ctx context.Context, arg UpdateBookingSe
 		&i.ID,
 		&i.MonthlyDiscountBps,
 		&i.MonthlyDiscountLabel,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updatePaymentSettings = `-- name: UpdatePaymentSettings :one
+UPDATE payment_settings
+SET merchant_cbe_account      = $1,
+    merchant_telebirr_account = $2,
+    updated_by                = $3,
+    updated_at                = now()
+WHERE id
+RETURNING id, merchant_cbe_account, merchant_telebirr_account, updated_by, updated_at
+`
+
+type UpdatePaymentSettingsParams struct {
+	MerchantCbeAccount      string     `json:"merchant_cbe_account"`
+	MerchantTelebirrAccount string     `json:"merchant_telebirr_account"`
+	UpdatedBy               *uuid.UUID `json:"updated_by"`
+}
+
+func (q *Queries) UpdatePaymentSettings(ctx context.Context, arg UpdatePaymentSettingsParams) (PaymentSetting, error) {
+	row := q.db.QueryRow(ctx, updatePaymentSettings, arg.MerchantCbeAccount, arg.MerchantTelebirrAccount, arg.UpdatedBy)
+	var i PaymentSetting
+	err := row.Scan(
+		&i.ID,
+		&i.MerchantCbeAccount,
+		&i.MerchantTelebirrAccount,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 	)

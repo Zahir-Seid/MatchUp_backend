@@ -67,6 +67,10 @@ var (
 	// CBE account suffixes are the eight trailing digits of the payer's
 	// account number.
 	suffixPattern = regexp.MustCompile(`^\d{8}$`)
+	// merchantAccountPattern matches a receiving account number: digits only,
+	// long enough to be an account, capped so a pasted sentence cannot become
+	// the account the worker checks receipts against.
+	merchantAccountPattern = regexp.MustCompile(`^[0-9]{8,20}$`)
 	// Transaction references from both providers are alphanumeric tokens;
 	// receipt URLs are normalized before this check.
 	referencePattern = regexp.MustCompile(`^[A-Za-z0-9._-]{4,128}$`)
@@ -108,6 +112,20 @@ func (v *Validator) AccountSuffix(field, value string) string {
 	}
 	if !suffixPattern.MatchString(trimmed) {
 		v.Add(field, "must be the 8 digits of the paying account after 1000")
+	}
+	return trimmed
+}
+
+// MerchantAccount validates a receiving account number for payment settings.
+// Empty is accepted and means "clear the override": the worker falls back to
+// the environment bootstrap value.
+func (v *Validator) MerchantAccount(field, value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	if !merchantAccountPattern.MatchString(trimmed) {
+		v.Add(field, "must be 8-20 digits, or empty to fall back to the configured account")
 	}
 	return trimmed
 }

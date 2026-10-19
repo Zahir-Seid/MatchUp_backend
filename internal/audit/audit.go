@@ -44,6 +44,10 @@ const (
 	// policy: a value edit with money behind it, so it belongs in the log even
 	// though no booking row changed.
 	ActionBookingSettingsUpdated = "settings.booking_updated"
+	// ActionPaymentSettingsUpdated records a change to the receiving accounts
+	// payments are verified against. It is the one settings edit with money
+	// behind it, so every other admin is alerted about it as well as audited.
+	ActionPaymentSettingsUpdated = "settings.payments_updated"
 )
 
 // Target types, naming the table the target_id belongs to.
@@ -59,7 +63,7 @@ const (
 	TargetSeries = "game_series"
 	// TargetSettings names the dashboard-editable platform settings. There is
 	// no uuid to point at — a singleton row — so the target id is the setting
-	// group's name, "booking".
+	// group's name, "booking" or "payments".
 	TargetSettings = "settings"
 )
 

@@ -21,8 +21,7 @@ import (
 
 // Verifier checks Telebirr payments. Construct it with New.
 type Verifier struct {
-	client          *telebirr.Client
-	merchantAccount string
+	client *telebirr.Client
 }
 
 // New builds a Telebirr verifier around an already-configured client. The client
@@ -30,11 +29,13 @@ type Verifier struct {
 // the environment the library itself reads, so nothing about them is restated
 // here.
 //
-// merchantAccount is the business's own Telebirr number, compared against the
-// credited party on every receipt. A blank value makes every payee check
-// inconclusive, which parks every payment for review rather than confirming it.
-func New(client *telebirr.Client, merchantAccount string) *Verifier {
-	return &Verifier{client: client, merchantAccount: merchantAccount}
+// The receiving account is per request (VerifyRequest.MerchantAccount),
+// resolved by the caller: the dashboard settings value once an admin has saved
+// one, the environment bootstrap otherwise. A blank value makes every payee
+// check inconclusive, which parks every payment for review rather than
+// confirming it.
+func New(client *telebirr.Client) *Verifier {
+	return &Verifier{client: client}
 }
 
 // Method reports the payments.method value this verifier handles.
@@ -66,16 +67,16 @@ func (v *Verifier) Verify(ctx context.Context, req payment.VerifyRequest) (payme
 		// fatal, so a library bug cannot lose a real payment.
 		return payment.VerifyResult{}, errors.New("telebirr: verifier returned no receipt")
 	}
-	return v.interpret(*receipt, req.ExpectedAmount), nil
+	return v.interpret(*receipt, req.ExpectedAmount, req.MerchantAccount), nil
 }
 
-// interpret applies the three checks the library leaves to the caller. Any one
-// of them failing parks the payment for review; only all three passing confirms
-// the booking.
-func (v *Verifier) interpret(receipt telebirr.Receipt, expected money.Santim) payment.VerifyResult {
+// interpret applies the three checks the library leaves to the caller, with the
+// credited party compared against merchantAccount. Any one of them failing
+// parks the payment for review; only all three passing confirms the booking.
+func (v *Verifier) interpret(receipt telebirr.Receipt, expected money.Santim, merchantAccount string) payment.VerifyResult {
 	out := payment.VerifyResult{
 		Raw:        receipt,
-		PayeeCheck: payment.ComparePayee(receipt.CreditedPartyAccountNo, v.merchantAccount),
+		PayeeCheck: payment.ComparePayee(receipt.CreditedPartyAccountNo, merchantAccount),
 	}
 
 	var reasons []string
