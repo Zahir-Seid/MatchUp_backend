@@ -60,6 +60,7 @@ type Config struct {
 	AccessTokenTTL      time.Duration
 	RefreshTokenTTL     time.Duration
 	PasswordResetTTL    time.Duration
+	EmailVerifyTTL      time.Duration
 	GoogleOAuthClientID string
 
 	// Rate limiting
@@ -122,11 +123,14 @@ type Need struct {
 	Notify   bool
 }
 
-// NeedServe, NeedAdmin and NeedWorker are the three real call sites.
+// NeedServe, NeedAdmin and NeedWorker are the three service call sites. NeedCLI
+// is the operator tool: it only touches accounts, so it requires nothing but a
+// database.
 var (
 	NeedServe  = Need{HTTP: true, DB: true, Auth: true, Accounts: true}
 	NeedAdmin  = Need{HTTP: true, DB: true, Admin: true, Accounts: true}
 	NeedWorker = Need{DB: true, Accounts: true, Notify: true}
+	NeedCLI    = Need{DB: true}
 )
 
 // Load reads configuration from the environment and validates the groups named
@@ -160,6 +164,7 @@ func Load(need Need) (*Config, error) {
 		AccessTokenTTL:        envDuration("ACCESS_TOKEN_TTL", 15*time.Minute, fail),
 		RefreshTokenTTL:       envDuration("REFRESH_TOKEN_TTL", 30*24*time.Hour, fail),
 		PasswordResetTTL:      envDuration("PASSWORD_RESET_TTL", time.Hour, fail),
+		EmailVerifyTTL:        envDuration("EMAIL_VERIFY_TTL", 24*time.Hour, fail),
 		GoogleOAuthClientID:   os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
 		AdminCORSOrigins:      envList("ADMIN_CORS_ORIGINS"),
 
