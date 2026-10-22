@@ -113,7 +113,7 @@ type SignupInput struct {
 
 // Signup creates a password account and returns a session for it.
 func (s *Service) Signup(ctx context.Context, in SignupInput) (*db.User, *TokenPair, error) {
-	hash, err := hashPassword(in.Password)
+	hash, err := hashPasswordForRole(in.Password, RolePlayer)
 	if err != nil {
 		if weak, ok := AsWeakPassword(err); ok {
 			return nil, nil, httpx.ErrValidation.WithField("password", weak.Reason).WithCause(err)

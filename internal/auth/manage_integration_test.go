@@ -124,12 +124,12 @@ func TestCreateAccountEnforcesPasswordPolicy(t *testing.T) {
 	}
 }
 
-func TestSetPasswordByEmailRevokesSessionsAndResetTokens(t *testing.T) {
+func TestSetAdminPasswordByEmailRevokesSessionsAndResetTokens(t *testing.T) {
 	store := testsupport.Store(t)
 	svc := newManageService(store)
 	ctx := context.Background()
 
-	user := cliAccount(t, svc, RolePlayer)
+	user := cliAccount(t, svc, RoleAdmin)
 	if _, err := store.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		TokenHash: []byte("refresh-hash-" + uuid.NewString()),
@@ -150,7 +150,7 @@ func TestSetPasswordByEmailRevokesSessionsAndResetTokens(t *testing.T) {
 	}
 
 	const next = "new-password-99"
-	updated, err := svc.SetPasswordByEmail(ctx, user.Email, next)
+	updated, err := svc.SetAdminPasswordByEmail(ctx, user.Email, next)
 	if err != nil {
 		t.Fatalf("set password: %v", err)
 	}
@@ -185,16 +185,50 @@ func TestSetPasswordByEmailRevokesSessionsAndResetTokens(t *testing.T) {
 	}
 }
 
-func TestSetPasswordByEmailUnknownAccountIsNotFound(t *testing.T) {
+func TestSetAdminPasswordByEmailUnknownAccountIsNotFound(t *testing.T) {
 	store := testsupport.Store(t)
 	svc := newManageService(store)
 
-	_, err := svc.SetPasswordByEmail(context.Background(), "nobody@example.test", cliTestPassword)
+	_, err := svc.SetAdminPasswordByEmail(context.Background(), "nobody@example.test", cliTestPassword)
 	if err == nil {
 		t.Fatal("unknown account was accepted")
 	}
 	if code := errorCode(t, err); code != httpx.CodeNotFound {
 		t.Errorf("code = %q, want %q", code, httpx.CodeNotFound)
+	}
+}
+
+func TestSetAdminPasswordByEmailRejectsPlayer(t *testing.T) {
+	store := testsupport.Store(t)
+	svc := newManageService(store)
+
+	player := cliAccount(t, svc, RolePlayer)
+
+	_, err := svc.SetAdminPasswordByEmail(context.Background(), player.Email, cliTestPassword)
+	if err == nil {
+		t.Fatal("player password was reset through the operator CLI")
+	}
+	if code := errorCode(t, err); code != httpx.CodeForbidden {
+		t.Errorf("code = %q, want %q", code, httpx.CodeForbidden)
+	}
+}
+
+func TestCreateAccountAdminNeedsTenCharacters(t *testing.T) {
+	store := testsupport.Store(t)
+	svc := newManageService(store)
+
+	_, err := svc.CreateAccount(context.Background(), CreateAccountInput{
+		FullName: "Short",
+		Email:    "short-" + uuid.NewString() + "@example.test",
+		Password: "abcdefg1",
+		Role:     RoleAdmin,
+	})
+	if err == nil {
+		t.Fatal("nine-character admin password was accepted")
+	}
+	var apiErr *httpx.Error
+	if !errors.As(err, &apiErr) || apiErr.Fields["password"] == "" {
+		t.Fatalf("expected a password field error, got %v", err)
 	}
 }
 

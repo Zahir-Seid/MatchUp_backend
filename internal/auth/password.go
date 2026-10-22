@@ -18,8 +18,9 @@ const bcryptCost = 12
 // ignores input beyond 72 bytes: without it, two different long passwords
 // could authenticate the same account.
 const (
-	minPasswordLength = 10
-	maxPasswordBytes  = 72
+	minPlayerPasswordLength = 8
+	minAdminPasswordLength  = 10
+	maxPasswordBytes        = 72
 )
 
 // ErrWeakPassword is returned when a password fails policy. The message is
@@ -28,9 +29,21 @@ type ErrWeakPassword struct{ Reason string }
 
 func (e *ErrWeakPassword) Error() string { return "weak password: " + e.Reason }
 
-// hashPassword applies the policy and returns a bcrypt hash.
-func hashPassword(plain string) (string, error) {
-	if err := checkPasswordStrength(plain); err != nil {
+// minPasswordLengthForRole keeps the admin requirement stricter than the
+// player one. An unknown role is treated as a player: the only privileged role
+// is named explicitly, so a future role does not silently inherit the lower
+// bound.
+func minPasswordLengthForRole(role string) int {
+	if role == RoleAdmin {
+		return minAdminPasswordLength
+	}
+	return minPlayerPasswordLength
+}
+
+// hashPasswordForRole applies the policy for the account's role and returns a
+// bcrypt hash.
+func hashPasswordForRole(plain, role string) (string, error) {
+	if err := checkPasswordStrength(plain, minPasswordLengthForRole(role)); err != nil {
 		return "", err
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(plain), bcryptCost)
@@ -48,10 +61,10 @@ func verifyPassword(hash, candidate string) bool {
 // checkPasswordStrength enforces length and character variety. It rejects
 // passwords bcrypt would truncate, and requires a mix that rules out the
 // single-dictionary-word case without demanding an unusable pattern.
-func checkPasswordStrength(plain string) error {
+func checkPasswordStrength(plain string, minLength int) error {
 	switch {
-	case len([]rune(plain)) < minPasswordLength:
-		return &ErrWeakPassword{Reason: fmt.Sprintf("must be at least %d characters", minPasswordLength)}
+	case len([]rune(plain)) < minLength:
+		return &ErrWeakPassword{Reason: fmt.Sprintf("must be at least %d characters", minLength)}
 	case len(plain) > maxPasswordBytes:
 		return &ErrWeakPassword{Reason: fmt.Sprintf("must be at most %d bytes", maxPasswordBytes)}
 	case strings.TrimSpace(plain) == "":

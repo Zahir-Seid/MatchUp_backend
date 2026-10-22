@@ -93,20 +93,32 @@ func (s *Service) ResetPassword(ctx context.Context, rawToken, newPassword strin
 	invalid := httpx.NewError(http.StatusBadRequest, httpx.CodeTokenExpired,
 		"That reset link is no longer valid. Request a new one.")
 
-	hash, err := hashPassword(newPassword)
-	if err != nil {
-		if weak, ok := AsWeakPassword(err); ok {
-			return httpx.ErrValidation.WithField("password", weak.Reason).WithCause(err)
-		}
-		return err
-	}
-
 	stored, err := s.store.GetPasswordResetTokenByHash(ctx, hashResetToken(rawToken))
 	if err != nil {
 		if db.IsNoRows(err) {
 			return invalid
 		}
 		return fmt.Errorf("get reset token: %w", err)
+	}
+	if stored.UsedAt != nil || !stored.ExpiresAt.After(s.now()) {
+		return invalid
+	}
+
+	// Load the account before hashing so the password policy follows its role,
+	// and so an invalid token does not buy an attacker a bcrypt round.
+	user, err := s.store.GetUserByID(ctx, stored.UserID)
+	if err != nil {
+		if db.IsNoRows(err) {
+			return invalid
+		}
+		return fmt.Errorf("get user for reset: %w", err)
+	}
+	hash, err := hashPasswordForRole(newPassword, user.Role)
+	if err != nil {
+		if weak, ok := AsWeakPassword(err); ok {
+			return httpx.ErrValidation.WithField("password", weak.Reason).WithCause(err)
+		}
+		return err
 	}
 
 	return s.store.InTx(ctx, func(q *db.Queries) error {
@@ -156,7 +168,7 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, current,
 		return nil, httpx.ErrValidation.WithField("current_password", "incorrect")
 	}
 
-	hash, err := hashPassword(next)
+	hash, err := hashPasswordForRole(next, user.Role)
 	if err != nil {
 		if weak, ok := AsWeakPassword(err); ok {
 			return nil, httpx.ErrValidation.WithField("new_password", weak.Reason).WithCause(err)

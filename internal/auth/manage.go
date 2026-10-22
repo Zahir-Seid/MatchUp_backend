@@ -43,7 +43,7 @@ func (s *Service) CreateAccount(ctx context.Context, in CreateAccountInput) (*db
 		return nil, httpx.ErrValidation.WithField("full_name", "required")
 	}
 
-	hash, err := hashPassword(in.Password)
+	hash, err := hashPasswordForRole(in.Password, role)
 	if err != nil {
 		if weak, ok := AsWeakPassword(err); ok {
 			return nil, httpx.ErrValidation.WithField("password", weak.Reason).WithCause(err)
@@ -87,11 +87,14 @@ func (s *Service) CreateAccount(ctx context.Context, in CreateAccountInput) (*db
 	return out, nil
 }
 
-// SetPasswordByEmail sets a new password without a reset link, for the operator
-// CLI. Every refresh token and outstanding reset token is killed: the person
+// SetAdminPasswordByEmail sets a new password for an admin without a reset
+// link, for the operator CLI. Players are refused: they recover through the
+// in-app reset flow, and the CLI exists only for admin operations.
+//
+// Every refresh token and outstanding reset token is killed: the person
 // running this believes the account is locked out or compromised, and leaving
 // either alive would let the previous holder keep or retake access.
-func (s *Service) SetPasswordByEmail(ctx context.Context, email, newPassword string) (*db.User, error) {
+func (s *Service) SetAdminPasswordByEmail(ctx context.Context, email, newPassword string) (*db.User, error) {
 	user, err := s.store.GetUserByEmail(ctx, normalizeEmail(email))
 	if err != nil {
 		if db.IsNoRows(err) {
@@ -99,8 +102,12 @@ func (s *Service) SetPasswordByEmail(ctx context.Context, email, newPassword str
 		}
 		return nil, fmt.Errorf("get user by email: %w", err)
 	}
+	if user.Role != RoleAdmin {
+		return nil, httpx.NewError(http.StatusForbidden, httpx.CodeForbidden,
+			"The operator CLI only resets admin passwords; players use the in-app reset flow.")
+	}
 
-	hash, err := hashPassword(newPassword)
+	hash, err := hashPasswordForRole(newPassword, user.Role)
 	if err != nil {
 		if weak, ok := AsWeakPassword(err); ok {
 			return nil, httpx.ErrValidation.WithField("password", weak.Reason).WithCause(err)
