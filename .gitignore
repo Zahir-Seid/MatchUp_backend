@@ -34,6 +34,10 @@ go.work.sum
 # env file
 .env
 
+# Local credentials: Firebase service accounts and OAuth client secrets.
+*firebase-adminsdk*.json
+client_secret_*.json
+
 # Editor/IDE
 # .idea/
 # .vscode/
