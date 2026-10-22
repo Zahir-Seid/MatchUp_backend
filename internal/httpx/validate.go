@@ -60,10 +60,10 @@ func (v *Validator) Length(field, value string, min, max int) {
 }
 
 var (
-	// Ethiopian mobile numbers, accepted as 09xxxxxxxx, 07xxxxxxxx or the
-	// +251 international form. Phone is contact information only; it is never
-	// an identity or a login credential.
-	phonePattern = regexp.MustCompile(`^(?:\+251|0)(9|7)\d{8}$`)
+	// Ethiopian mobile numbers, accepted as 09xxxxxxxx, 07xxxxxxxx, the bare
+	// nine-digit national form, or the +251 international form. Phone is
+	// contact information only; it is never an identity or a login credential.
+	phonePattern = regexp.MustCompile(`^(?:\+?251|0)?[79]\d{8}$`)
 	// CBE account suffixes are the eight trailing digits of the payer's
 	// account number.
 	suffixPattern = regexp.MustCompile(`^\d{8}$`)
@@ -92,16 +92,23 @@ func (v *Validator) Email(field, value string) string {
 	return trimmed
 }
 
-// Phone validates an optional Ethiopian mobile number, returning it trimmed.
+// Phone validates an optional Ethiopian mobile number and returns it in the
+// canonical +2519XXXXXXXX or +2517XXXXXXXX form. Accepting every local spelling
+// and normalizing here means stored numbers have one shape regardless of how
+// the client or an operator typed them.
 func (v *Validator) Phone(field, value string) string {
-	trimmed := strings.ReplaceAll(strings.TrimSpace(value), " ", "")
-	if trimmed == "" {
+	cleaned := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "").Replace(strings.TrimSpace(value))
+	if cleaned == "" {
 		return ""
 	}
-	if !phonePattern.MatchString(trimmed) {
-		v.Add(field, "must be an Ethiopian mobile number, e.g. 0912345678")
+	if !phonePattern.MatchString(cleaned) {
+		v.Add(field, "must be an Ethiopian mobile number, e.g. 0912345678, 0712345678 or +251912345678")
+		return cleaned
 	}
-	return trimmed
+	national := strings.TrimPrefix(cleaned, "+")
+	national = strings.TrimPrefix(national, "251")
+	national = strings.TrimPrefix(national, "0")
+	return "+251" + national
 }
 
 // AccountSuffix validates a CBE payer account suffix.
