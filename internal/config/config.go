@@ -7,6 +7,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -35,11 +36,15 @@ type Config struct {
 	AppEnv Env
 
 	// HTTP
-	Port            int
-	AdminPort       int
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	ShutdownTimeout time.Duration
+	Port      int
+	AdminPort int
+	// PublicAPIBaseURL is the origin clients reach the public API at. Field
+	// image URLs are absolute so a mobile client does not have to resolve them
+	// against the admin API it fetched the field from.
+	PublicAPIBaseURL string
+	ReadTimeout      time.Duration
+	WriteTimeout     time.Duration
+	ShutdownTimeout  time.Duration
 
 	// Database
 	DatabaseURL   string
@@ -99,14 +104,15 @@ type Config struct {
 	LogFormat string
 
 	// Worker cadence
-	VerifyPollInterval  time.Duration
-	ExpirySweepInterval time.Duration
-	ReconcileInterval   time.Duration
-	NotifyPollInterval  time.Duration
-	VerifyBatchSize     int
-	NotifyBatchSize     int
-	StuckJobThreshold   time.Duration
-	ExpiryWarningWindow time.Duration
+	VerifyPollInterval   time.Duration
+	ExpirySweepInterval  time.Duration
+	ReconcileInterval    time.Duration
+	NotifyPollInterval   time.Duration
+	ImageCleanupInterval time.Duration
+	VerifyBatchSize      int
+	NotifyBatchSize      int
+	StuckJobThreshold    time.Duration
+	ExpiryWarningWindow  time.Duration
 }
 
 // Need selects which configuration groups must be present and valid. A binary
@@ -142,14 +148,16 @@ func Load(need Need) (*Config, error) {
 		problems = append(problems, fmt.Sprintf(format, args...))
 	}
 
+	port := envInt("PORT", 8080, fail)
 	c := &Config{
 		AppEnv: Env(strings.ToLower(envDefault("APP_ENV", string(EnvLocal)))),
 
-		Port:            envInt("PORT", 8080, fail),
-		AdminPort:       envInt("ADMIN_PORT", 8081, fail),
-		ReadTimeout:     envDuration("HTTP_READ_TIMEOUT", 15*time.Second, fail),
-		WriteTimeout:    envDuration("HTTP_WRITE_TIMEOUT", 30*time.Second, fail),
-		ShutdownTimeout: envDuration("HTTP_SHUTDOWN_TIMEOUT", 20*time.Second, fail),
+		Port:             port,
+		AdminPort:        envInt("ADMIN_PORT", 8081, fail),
+		PublicAPIBaseURL: envDefault("PUBLIC_API_BASE_URL", fmt.Sprintf("http://localhost:%d", port)),
+		ReadTimeout:      envDuration("HTTP_READ_TIMEOUT", 15*time.Second, fail),
+		WriteTimeout:     envDuration("HTTP_WRITE_TIMEOUT", 30*time.Second, fail),
+		ShutdownTimeout:  envDuration("HTTP_SHUTDOWN_TIMEOUT", 20*time.Second, fail),
 
 		DatabaseURL:   os.Getenv("DATABASE_URL"),
 		DBMaxConns:    int32(envInt("DB_MAX_CONNS", 10, fail)),
@@ -194,14 +202,15 @@ func Load(need Need) (*Config, error) {
 		LogLevel:  strings.ToLower(envDefault("LOG_LEVEL", "info")),
 		LogFormat: strings.ToLower(strings.TrimSpace(os.Getenv("LOG_FORMAT"))),
 
-		VerifyPollInterval:  envDuration("VERIFY_POLL_INTERVAL", 2*time.Second, fail),
-		ExpirySweepInterval: envDuration("EXPIRY_SWEEP_INTERVAL", 15*time.Second, fail),
-		ReconcileInterval:   envDuration("RECONCILE_INTERVAL", 5*time.Minute, fail),
-		NotifyPollInterval:  envDuration("NOTIFY_POLL_INTERVAL", 5*time.Second, fail),
-		VerifyBatchSize:     envInt("VERIFY_BATCH_SIZE", 10, fail),
-		NotifyBatchSize:     envInt("NOTIFY_BATCH_SIZE", 25, fail),
-		StuckJobThreshold:   envDuration("STUCK_JOB_THRESHOLD", 5*time.Minute, fail),
-		ExpiryWarningWindow: envDuration("EXPIRY_WARNING_WINDOW", 2*time.Minute, fail),
+		VerifyPollInterval:   envDuration("VERIFY_POLL_INTERVAL", 2*time.Second, fail),
+		ExpirySweepInterval:  envDuration("EXPIRY_SWEEP_INTERVAL", 15*time.Second, fail),
+		ReconcileInterval:    envDuration("RECONCILE_INTERVAL", 5*time.Minute, fail),
+		NotifyPollInterval:   envDuration("NOTIFY_POLL_INTERVAL", 5*time.Second, fail),
+		ImageCleanupInterval: envDuration("IMAGE_CLEANUP_INTERVAL", time.Hour, fail),
+		VerifyBatchSize:      envInt("VERIFY_BATCH_SIZE", 10, fail),
+		NotifyBatchSize:      envInt("NOTIFY_BATCH_SIZE", 25, fail),
+		StuckJobThreshold:    envDuration("STUCK_JOB_THRESHOLD", 5*time.Minute, fail),
+		ExpiryWarningWindow:  envDuration("EXPIRY_WARNING_WINDOW", 2*time.Minute, fail),
 	}
 
 	switch c.AppEnv {
@@ -275,6 +284,9 @@ func Load(need Need) (*Config, error) {
 		}
 		if c.RateLimitBurst < 1 {
 			fail("RATE_LIMIT_BURST must be at least 1")
+		}
+		if !validPublicBaseURL(c.PublicAPIBaseURL) {
+			fail("PUBLIC_API_BASE_URL must be an absolute http or https origin (got %q)", c.PublicAPIBaseURL)
 		}
 	}
 
@@ -356,6 +368,16 @@ func requireSecret(name, value string, fail func(string, ...any)) {
 	case len(value) < 32:
 		fail("%s must be at least 32 characters (got %d)", name, len(value))
 	}
+}
+
+func validPublicBaseURL(raw string) bool {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Host == "" {
+		return false
+	}
+	return (u.Scheme == "http" || u.Scheme == "https") &&
+		u.User == nil && (u.Path == "" || u.Path == "/") &&
+		u.RawQuery == "" && u.Fragment == ""
 }
 
 func envDefault(key, def string) string {

@@ -253,11 +253,49 @@
           "image_url": {
             "type": "string"
           },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/FieldImage"
+            },
+            "type": "array"
+          },
           "location": {
             "type": "string"
           },
           "name": {
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FieldImage": {
+        "properties": {
+          "byte_size": {
+            "type": "integer"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          },
+          "position": {
+            "type": "integer"
+          },
+          "thumbnail_url": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer"
           }
         },
         "type": "object"
@@ -2338,6 +2376,192 @@
           }
         },
         "summary": "List fields",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/fields/{fieldID}/images/{imageID}": {
+      "get": {
+        "description": "The re-encoded display copy, or the smaller thumbnail when the /thumbnail path is used. Only images attached to the field are served; staged uploads are never public. Responses are immutable and support conditional requests and byte ranges.",
+        "parameters": [
+          {
+            "description": "Field id (UUID)",
+            "in": "path",
+            "name": "fieldID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Image id (UUID)",
+            "in": "path",
+            "name": "imageID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The image bytes"
+          },
+          "404": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "429": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get a field image",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/fields/{fieldID}/images/{imageID}/thumbnail": {
+      "get": {
+        "description": "The re-encoded display copy, or the smaller thumbnail when the /thumbnail path is used. Only images attached to the field are served; staged uploads are never public. Responses are immutable and support conditional requests and byte ranges.",
+        "parameters": [
+          {
+            "description": "Field id (UUID)",
+            "in": "path",
+            "name": "fieldID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Image id (UUID)",
+            "in": "path",
+            "name": "imageID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The image bytes"
+          },
+          "404": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "429": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get a field image",
         "tags": [
           "catalog"
         ]

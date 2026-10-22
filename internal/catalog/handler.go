@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"bytes"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 )
 
 // Pagination bounds for list endpoints. The cap stops a client from asking for
@@ -17,6 +19,10 @@ import (
 const (
 	defaultPageSize = 20
 	maxPageSize     = 100
+	// imageWriteTimeout overrides the API-wide write deadline for image bytes.
+	// A field photo can be several megabytes and mobile links are slow; the
+	// default would cut off a download that is still making progress.
+	imageWriteTimeout = 2 * time.Minute
 )
 
 // Handler serves the public catalog endpoints.
@@ -30,6 +36,8 @@ func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
 // Routes mounts the discovery endpoints.
 func (h *Handler) Routes(r chi.Router) {
 	r.Method(http.MethodGet, "/fields", httpx.Handler(h.listFields))
+	r.Method(http.MethodGet, "/fields/{fieldID}/images/{imageID}", h.getFieldImage(false))
+	r.Method(http.MethodGet, "/fields/{fieldID}/images/{imageID}/thumbnail", h.getFieldImage(true))
 	r.Method(http.MethodGet, "/games", httpx.Handler(h.listGames))
 	r.Method(http.MethodGet, "/games/{id}", httpx.Handler(h.getGame))
 }
@@ -124,6 +132,56 @@ func (h *Handler) listFields(w http.ResponseWriter, r *http.Request) error {
 	}
 	httpx.JSON(w, r, http.StatusOK, fieldListResponse{Fields: fields})
 	return nil
+}
+
+// getFieldImage serves an attached image's bytes or its thumbnail.
+//
+//	@Summary		Get a field image
+//	@Description	The re-encoded display copy, or the smaller thumbnail when the /thumbnail path is used. Only images attached to the field are served; staged uploads are never public. Responses are immutable and support conditional requests and byte ranges.
+//	@Tags			catalog, public
+//	@Produce		image/jpeg
+//	@Produce		image/png
+//	@Param			fieldID	path	string	true	"Field id (UUID)"
+//	@Param			imageID	path	string	true	"Image id (UUID)"
+//	@Success		200		{file}	binary	"The image bytes"
+//	@Failure		404		{object}	httpx.ErrorEnvelope
+//	@Failure		429		{object}	httpx.ErrorEnvelope
+//	@Failure		500		{object}	httpx.ErrorEnvelope
+//	@Router			/fields/{fieldID}/images/{imageID} [get]
+//	@Router			/fields/{fieldID}/images/{imageID}/thumbnail [get]
+func (h *Handler) getFieldImage(thumbnail bool) httpx.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		fieldID, err := ParseIDParam(r, "fieldID")
+		if err != nil {
+			return err
+		}
+		imageID, err := ParseIDParam(r, "imageID")
+		if err != nil {
+			return err
+		}
+
+		var img *media.ImageBytes
+		if thumbnail {
+			img, err = h.svc.GetThumbnail(r.Context(), fieldID, imageID)
+		} else {
+			img, err = h.svc.GetImage(r.Context(), fieldID, imageID)
+		}
+		if err != nil {
+			return err
+		}
+
+		headers := w.Header()
+		// Overrides the API-wide no-store default: these bytes never change for
+		// a given id, so a client may keep them indefinitely.
+		headers.Set("Cache-Control", "public, max-age=31536000, immutable")
+		headers.Set("Content-Type", img.ContentType)
+		headers.Set("ETag", img.ETag)
+		headers.Set("X-Content-Type-Options", "nosniff")
+		headers.Set("Content-Security-Policy", "default-src 'none'; sandbox")
+		_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(imageWriteTimeout))
+		http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(img.Data))
+		return nil
+	}
 }
 
 // parseGameFilter reads the discovery query string, rejecting values it cannot

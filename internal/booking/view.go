@@ -10,6 +10,7 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/catalog"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/money"
 )
 
@@ -102,11 +103,15 @@ func (s *Service) List(ctx context.Context, userID uuid.UUID, status *string, li
 	if err != nil {
 		return nil, fmt.Errorf("list booking games: %w", err)
 	}
+	galleries, err := s.galleriesForRows(ctx, gameRows)
+	if err != nil {
+		return nil, err
+	}
 	byBooking := make(map[uuid.UUID][]BookedGame, len(bookings))
 	for _, row := range gameRows {
 		byBooking[row.BookingID] = append(byBooking[row.BookingID], BookedGame{
 			WeekIndex: row.WeekIndex,
-			Game:      catalog.ToGameView(row.Game, row.Field),
+			Game:      catalog.ToGameView(row.Game, row.Field, galleries[row.Field.ID]),
 		})
 	}
 
@@ -130,11 +135,15 @@ func (s *Service) viewFor(ctx context.Context, booking db.Booking) (*View, error
 	if err != nil {
 		return nil, fmt.Errorf("list booking games: %w", err)
 	}
+	galleries, err := s.galleriesForRows(ctx, gameRows)
+	if err != nil {
+		return nil, err
+	}
 	view.Games = make([]BookedGame, 0, len(gameRows))
 	for _, row := range gameRows {
 		view.Games = append(view.Games, BookedGame{
 			WeekIndex: row.WeekIndex,
-			Game:      catalog.ToGameView(row.Game, row.Field),
+			Game:      catalog.ToGameView(row.Game, row.Field, galleries[row.Field.ID]),
 		})
 	}
 
@@ -192,6 +201,28 @@ func toView(b db.Booking, now time.Time) View {
 		view.HoldSecondsRemaining = &seconds
 	}
 	return view
+}
+
+// galleriesForRows fetches the field artwork for every game in a booking view
+// in one query, so a monthly booking spanning several fields does not fan out.
+func (s *Service) galleriesForRows(ctx context.Context, rows []db.ListBookingGamesForBookingsRow) (map[uuid.UUID][]media.Image, error) {
+	if s.media == nil || len(rows) == 0 {
+		return map[uuid.UUID][]media.Image{}, nil
+	}
+	seen := make(map[uuid.UUID]struct{}, len(rows))
+	fieldIDs := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		if _, ok := seen[row.Field.ID]; ok {
+			continue
+		}
+		seen[row.Field.ID] = struct{}{}
+		fieldIDs = append(fieldIDs, row.Field.ID)
+	}
+	galleries, err := s.media.FieldImageMap(ctx, fieldIDs)
+	if err != nil {
+		return nil, fmt.Errorf("load booking field images: %w", err)
+	}
+	return galleries, nil
 }
 
 func toPaymentView(p db.Payment) PaymentView {

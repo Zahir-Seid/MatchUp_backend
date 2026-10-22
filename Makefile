@@ -9,7 +9,7 @@ GOOSE      := $(GOBIN)/goose
 SQLC       := $(GOBIN)/sqlc
 SWAG       := $(GOBIN)/swag
 GOOSE_VER  := v3.26.0
-SQLC_VER   := v1.30.0
+SQLC_VER   := v1.31.1
 SWAG_VER   := v1.16.6
 
 # Overridable: `make migrate-up DATABASE_URL=...`. The default points at the

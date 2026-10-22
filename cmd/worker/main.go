@@ -28,6 +28,7 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/booking"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/config"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/notification"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/payment"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/payment/cbeadapter"
@@ -152,16 +153,20 @@ func run() error {
 		WarnMaxRows: cfg.NotifyBatchSize,
 	})
 
+	mediaSvc := media.NewService(media.Options{Store: store, Logger: log})
+
 	jobs := worker.Standard(worker.Deps{
 		Log:        log,
 		Verify:     verifySvc,
 		Sweeper:    sweeper,
 		Dispatcher: dispatcher,
+		Media:      mediaSvc,
 		Cadence: worker.Cadence{
-			Verify:      cfg.VerifyPollInterval,
-			ExpirySweep: cfg.ExpirySweepInterval,
-			Notify:      cfg.NotifyPollInterval,
-			Reconcile:   cfg.ReconcileInterval,
+			Verify:       cfg.VerifyPollInterval,
+			ExpirySweep:  cfg.ExpirySweepInterval,
+			Notify:       cfg.NotifyPollInterval,
+			Reconcile:    cfg.ReconcileInterval,
+			ImageCleanup: cfg.ImageCleanupInterval,
 			// Every job's timeout is derived from this, so a pass cannot
 			// outlive the point at which its own claims are considered
 			// abandoned and handed to another worker.

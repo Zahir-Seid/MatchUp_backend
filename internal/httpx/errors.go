@@ -101,14 +101,16 @@ func NewError(status int, code Code, message string) *Error {
 
 // Common errors, defined once so wording stays consistent across handlers.
 var (
-	ErrBadRequest   = NewError(http.StatusBadRequest, CodeBadRequest, "The request could not be understood.")
-	ErrValidation   = NewError(http.StatusUnprocessableEntity, CodeValidation, "Some fields need attention.")
-	ErrUnauthorized = NewError(http.StatusUnauthorized, CodeUnauthorized, "Sign in to continue.")
-	ErrForbidden    = NewError(http.StatusForbidden, CodeForbidden, "You do not have access to this.")
-	ErrNotFound     = NewError(http.StatusNotFound, CodeNotFound, "Not found.")
-	ErrRateLimited  = NewError(http.StatusTooManyRequests, CodeRateLimited, "Too many requests. Please slow down.")
-	ErrInternal     = NewError(http.StatusInternalServerError, CodeInternal, "Something went wrong on our side.")
-	ErrUnavailable  = NewError(http.StatusServiceUnavailable, CodeUnavailable, "Temporarily unavailable. Please try again shortly.")
+	ErrBadRequest    = NewError(http.StatusBadRequest, CodeBadRequest, "The request could not be understood.")
+	ErrValidation    = NewError(http.StatusUnprocessableEntity, CodeValidation, "Some fields need attention.")
+	ErrUnauthorized  = NewError(http.StatusUnauthorized, CodeUnauthorized, "Sign in to continue.")
+	ErrForbidden     = NewError(http.StatusForbidden, CodeForbidden, "You do not have access to this.")
+	ErrNotFound      = NewError(http.StatusNotFound, CodeNotFound, "Not found.")
+	ErrRateLimited   = NewError(http.StatusTooManyRequests, CodeRateLimited, "Too many requests. Please slow down.")
+	ErrPayloadTooBig = NewError(http.StatusRequestEntityTooLarge, CodePayloadTooBig,
+		"That request was too large.")
+	ErrInternal    = NewError(http.StatusInternalServerError, CodeInternal, "Something went wrong on our side.")
+	ErrUnavailable = NewError(http.StatusServiceUnavailable, CodeUnavailable, "Temporarily unavailable. Please try again shortly.")
 )
 
 // ErrorEnvelope is the wire format for every failure: {"error":{...}}. It is

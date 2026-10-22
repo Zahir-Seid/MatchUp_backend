@@ -13,10 +13,22 @@ import (
 // Handler serves the dashboard API.
 type Handler struct {
 	svc *Service
+	// upload throttles the image endpoints by admin account. Decoding and
+	// re-encoding are the most CPU-expensive work this API does.
+	upload func(http.Handler) http.Handler
 }
 
-// NewHandler builds the admin handler.
-func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
+// NewHandler builds the admin handler. uploadLimit may be nil.
+func NewHandler(svc *Service, uploadLimit ...func(http.Handler) http.Handler) *Handler {
+	h := &Handler{
+		svc:    svc,
+		upload: func(next http.Handler) http.Handler { return next },
+	}
+	if len(uploadLimit) > 0 && uploadLimit[0] != nil {
+		h.upload = uploadLimit[0]
+	}
+	return h
+}
 
 // Routes mounts every admin endpoint on r.
 //
@@ -40,6 +52,11 @@ func (h *Handler) Routes(r chi.Router) {
 		r.Method(http.MethodGet, "/", httpx.Handler(h.listFields))
 		r.Method(http.MethodPost, "/", httpx.Handler(h.createField))
 		r.Method(http.MethodPatch, "/{id}", httpx.Handler(h.updateField))
+	})
+
+	r.Route("/field-image-uploads", func(r chi.Router) {
+		r.With(h.upload).Method(http.MethodPost, "/", httpx.Handler(h.uploadFieldImage))
+		r.With(h.upload).Method(http.MethodDelete, "/{id}", httpx.Handler(h.deleteFieldImageUpload))
 	})
 
 	r.Route("/games", func(r chi.Router) {

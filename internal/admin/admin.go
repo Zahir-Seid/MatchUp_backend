@@ -24,6 +24,7 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/audit"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/notification"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/payment"
 )
@@ -39,6 +40,7 @@ type Service struct {
 	store    *db.Store
 	audit    *audit.Recorder
 	notifier Notifier
+	media    *media.Service
 	log      *slog.Logger
 
 	// monthlyWeeks mirrors the booking service's week count. A recurring slot
@@ -60,6 +62,7 @@ type Options struct {
 	// Notifier may be nil, in which case admin actions still apply but the
 	// affected customer is not told. Only useful in tests.
 	Notifier Notifier
+	Media    *media.Service
 	Logger   *slog.Logger
 	// MonthlyWeeks is the configured length of a monthly plan. Defaults to 4.
 	MonthlyWeeks int
@@ -82,6 +85,7 @@ func NewService(opts Options) *Service {
 		store:           opts.Store,
 		audit:           opts.Audit,
 		notifier:        opts.Notifier,
+		media:           opts.Media,
 		log:             log,
 		monthlyWeeks:    weeks,
 		paymentAccounts: opts.PaymentAccounts,

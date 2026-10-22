@@ -25,6 +25,7 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/config"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/notification"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/openapi"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/payment"
@@ -111,10 +112,16 @@ func run() error {
 		// the mail the same day.
 		EmailVerifyTTL: cfg.EmailVerifyTTL,
 	})
-	catalogSvc := catalog.NewService(store)
+	mediaSvc := media.NewService(media.Options{
+		Store:         store,
+		PublicBaseURL: cfg.PublicAPIBaseURL,
+		Logger:        log,
+	})
+	catalogSvc := catalog.NewService(store, mediaSvc)
 	bookingSvc := booking.NewService(booking.Options{
 		Store:        store,
 		Logger:       log,
+		Media:        mediaSvc,
 		HoldDuration: cfg.HoldDuration,
 		WeekCount:    cfg.MonthlyWeekCount,
 	})

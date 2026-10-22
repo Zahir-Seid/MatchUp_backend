@@ -1,13 +1,12 @@
 -- name: CreateField :one
-INSERT INTO fields (name, location, image_url)
-VALUES ($1, $2, $3)
+INSERT INTO fields (name, location)
+VALUES ($1, $2)
 RETURNING *;
 
 -- name: UpdateField :one
 UPDATE fields
 SET name      = COALESCE(sqlc.narg(name), name),
     location  = COALESCE(sqlc.narg(location), location),
-    image_url = COALESCE(sqlc.narg(image_url), image_url),
     is_active = COALESCE(sqlc.narg(is_active), is_active)
 WHERE id = $1
 RETURNING *;

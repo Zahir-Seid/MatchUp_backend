@@ -10,6 +10,7 @@ import (
 
 	"github.com/Zahir-Seid/MatchUp_backend/internal/catalog"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 )
 
 // fieldListResponse is the fields page the dashboard renders.
@@ -41,15 +42,16 @@ func (h *Handler) listFields(w http.ResponseWriter, r *http.Request) error {
 
 // createFieldRequest is the field to add.
 type createFieldRequest struct {
-	Name     string  `json:"name"`
-	Location string  `json:"location"`
-	ImageURL *string `json:"image_url"`
+	Name           string   `json:"name"`
+	Location       string   `json:"location"`
+	ImageIDs       []string `json:"image_ids"`
+	PrimaryImageID string   `json:"primary_image_id"`
 } //	@name	CreateFieldRequest
 
 // createField adds a field to the catalog (PRD FR25).
 //
 //	@Summary		Create a field
-//	@Description	Adds a field to the catalog. The image is a link to externally hosted artwork; this service never stores files.
+//	@Description	Adds a field to the catalog with 1-5 previously uploaded images. Upload images with POST /field-image-uploads first; this call claims those staged ids. primary_image_id selects the image used for thumbnails and image_url.
 //	@Tags			fields
 //	@Security		BearerAuth
 //	@Accept			json
@@ -78,15 +80,20 @@ func (h *Handler) createField(w http.ResponseWriter, r *http.Request) error {
 	v.Length("name", name, 2, 120)
 	location := v.Required("location", req.Location)
 	v.Length("location", location, 2, 200)
-	imageURL := validateImageURL(v, req.ImageURL)
+	imageIDs := parseImageIDs(v, req.ImageIDs)
+	primaryID := v.UUID("primary_image_id", req.PrimaryImageID)
+	if primaryID != uuid.Nil && !containsID(imageIDs, primaryID) {
+		v.Add("primary_image_id", "must be one of the images")
+	}
 	if err := v.Err(); err != nil {
 		return err
 	}
 
 	field, err := h.svc.CreateField(r.Context(), principal.UserID, FieldInput{
-		Name:     name,
-		Location: location,
-		ImageURL: imageURL,
+		Name:           name,
+		Location:       location,
+		ImageIDs:       imageIDs,
+		PrimaryImageID: primaryID,
 	})
 	if err != nil {
 		return err
@@ -97,16 +104,17 @@ func (h *Handler) createField(w http.ResponseWriter, r *http.Request) error {
 
 // updateFieldRequest edits a field. Members left out are unchanged.
 type updateFieldRequest struct {
-	Name     *string `json:"name"`
-	Location *string `json:"location"`
-	ImageURL *string `json:"image_url"`
-	IsActive *bool   `json:"is_active"`
+	Name           *string   `json:"name"`
+	Location       *string   `json:"location"`
+	ImageIDs       *[]string `json:"image_ids"`
+	PrimaryImageID *string   `json:"primary_image_id"`
+	IsActive       *bool     `json:"is_active"`
 } //	@name	UpdateFieldRequest
 
 // updateField edits a field or retires it (PRD FR25).
 //
 //	@Summary		Update a field
-//	@Description	A partial update: members left out are unchanged, and an explicit empty image_url clears the image. Deactivating a field only hides it from discovery; its games keep their own schedules.
+//	@Description	A partial update: members left out are unchanged. Sending image_ids replaces the whole gallery, in that order, and requires primary_image_id. Deactivating a field only hides it from discovery; its games keep their own schedules.
 //	@Tags			fields
 //	@Security		BearerAuth
 //	@Accept			json
@@ -148,13 +156,29 @@ func (h *Handler) updateField(w http.ResponseWriter, r *http.Request) error {
 		v.Length("location", location, 2, 200)
 		patch.Location = &location
 	}
-	if req.ImageURL != nil {
-		patch.ImageURL = validateImageURL(v, req.ImageURL)
+	if req.ImageIDs != nil {
+		ids := parseImageIDs(v, *req.ImageIDs)
+		patch.ImageIDs = &ids
+	}
+	if req.PrimaryImageID != nil {
+		primary := v.UUID("primary_image_id", *req.PrimaryImageID)
+		if primary != uuid.Nil {
+			patch.PrimaryImageID = &primary
+			if patch.ImageIDs != nil && !containsID(*patch.ImageIDs, primary) {
+				v.Add("primary_image_id", "must be one of the images")
+			}
+		}
+	}
+	if req.ImageIDs != nil && patch.PrimaryImageID == nil {
+		v.Add("primary_image_id", "required when images change")
+	}
+	if req.PrimaryImageID != nil && req.ImageIDs == nil {
+		v.Add("image_ids", "required when the primary image changes")
 	}
 	if err := v.Err(); err != nil {
 		return err
 	}
-	if patch.Name == nil && patch.Location == nil && patch.ImageURL == nil && patch.IsActive == nil {
+	if patch.Name == nil && patch.Location == nil && patch.ImageIDs == nil && patch.IsActive == nil {
 		return errNoChanges
 	}
 
@@ -166,26 +190,43 @@ func (h *Handler) updateField(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// validateImageURL accepts an absolute http(s) URL or nothing. Images are hosted
-// elsewhere -- this system stores a link, never a file -- so a relative path or
-// a javascript: scheme is a mistake worth rejecting at the edge, before the
-// dashboard renders it.
-func validateImageURL(v *httpx.Validator, raw *string) *string {
-	if raw == nil {
+// parseImageIDs turns the ordered id list into UUIDs and enforces the gallery
+// size. The service re-checks ownership and attachment inside the transaction;
+// this pass exists to return all field-level mistakes in one response.
+func parseImageIDs(v *httpx.Validator, raw []string) []uuid.UUID {
+	if len(raw) == 0 {
+		v.Add("image_ids", "at least one image is required")
 		return nil
 	}
-	trimmed := strings.TrimSpace(*raw)
-	if trimmed == "" {
-		// An explicit empty string clears the image, which the nullable column
-		// expresses as NULL.
+	if len(raw) > media.MaxImagesPerField {
+		v.Add("image_ids", "at most "+strconv.Itoa(media.MaxImagesPerField)+" images are allowed")
 		return nil
 	}
-	if !strings.HasPrefix(trimmed, "https://") && !strings.HasPrefix(trimmed, "http://") {
-		v.Add("image_url", "must be an absolute http or https URL")
-		return nil
+	ids := make([]uuid.UUID, 0, len(raw))
+	seen := make(map[uuid.UUID]struct{}, len(raw))
+	for _, value := range raw {
+		id, err := uuid.Parse(strings.TrimSpace(value))
+		if err != nil {
+			v.Add("image_ids", "must contain valid image ids")
+			return nil
+		}
+		if _, duplicate := seen[id]; duplicate {
+			v.Add("image_ids", "must not contain duplicate images")
+			return nil
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
 	}
-	v.Length("image_url", trimmed, 8, 500)
-	return &trimmed
+	return ids
+}
+
+func containsID(ids []uuid.UUID, want uuid.UUID) bool {
+	for _, id := range ids {
+		if id == want {
+			return true
+		}
+	}
+	return false
 }
 
 // listGames returns games matching the filter, newest first (PRD FR25).

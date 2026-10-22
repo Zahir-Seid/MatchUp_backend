@@ -183,11 +183,19 @@ func (s *Service) GetBooking(ctx context.Context, id uuid.UUID) (*BookingDetail,
 	if err != nil {
 		return nil, fmt.Errorf("list booking games: %w", err)
 	}
+	fieldIDs := make([]uuid.UUID, 0, len(gameRows))
+	for _, g := range gameRows {
+		fieldIDs = append(fieldIDs, g.Field.ID)
+	}
+	galleries, err := s.fieldImages(ctx, fieldIDs)
+	if err != nil {
+		return nil, err
+	}
 	detail.Games = make([]BookedGame, 0, len(gameRows))
 	for _, g := range gameRows {
 		detail.Games = append(detail.Games, BookedGame{
 			WeekIndex: g.WeekIndex,
-			Game:      catalog.ToGameView(g.Game, g.Field),
+			Game:      catalog.ToGameView(g.Game, g.Field, galleries[g.Field.ID]),
 		})
 	}
 

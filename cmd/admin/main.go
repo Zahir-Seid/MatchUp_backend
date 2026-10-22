@@ -29,6 +29,7 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/config"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/notification"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/openapi"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/payment"
@@ -39,6 +40,9 @@ import (
 // attempts a minute from one address is already generous.
 const (
 	loginRPS, loginBurst = 0.2, 10
+	// Image uploads decode and re-encode, so they are throttled per admin
+	// account rather than only by the coarse global IP limit.
+	uploadRPS, uploadBurst = 0.5, 5
 )
 
 // MatchUp Admin API is the dashboard API staff use to run the platform.
@@ -118,10 +122,17 @@ func run() error {
 		},
 	})
 
+	mediaSvc := media.NewService(media.Options{
+		Store:         store,
+		PublicBaseURL: cfg.PublicAPIBaseURL,
+		Logger:        log,
+	})
+
 	adminSvc := admin.NewService(admin.Options{
 		Store:        store,
 		Audit:        recorder,
 		Notifier:     notifySvc,
+		Media:        mediaSvc,
 		Logger:       log,
 		MonthlyWeeks: cfg.MonthlyWeekCount,
 		// The receiving accounts the dashboard can override, shown with their
@@ -136,9 +147,11 @@ func run() error {
 	defer globalLimiter.Close()
 	loginLimiter := httpx.NewRateLimiter(loginRPS, loginBurst)
 	defer loginLimiter.Close()
+	uploadLimiter := httpx.NewRateLimiter(uploadRPS, uploadBurst)
+	defer uploadLimiter.Close()
 
 	authH := auth.NewHandler(authSvc, loginLimiter.Middleware)
-	adminH := admin.NewHandler(adminSvc)
+	adminH := admin.NewHandler(adminSvc, uploadLimiter.ByUser)
 
 	r := newRouter(routerDeps{
 		log:           log,

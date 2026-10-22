@@ -14,6 +14,7 @@ import (
 
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 )
 
 // Booking statuses (PRD FR20).
@@ -41,12 +42,14 @@ type Service struct {
 	holdDuration time.Duration
 	weekCount    int32
 	now          func() time.Time
+	media        *media.Service
 }
 
 // Options configures the booking service.
 type Options struct {
 	Store        *db.Store
 	Logger       *slog.Logger
+	Media        *media.Service
 	HoldDuration time.Duration
 	WeekCount    int
 }
@@ -63,6 +66,7 @@ func NewService(opts Options) *Service {
 		holdDuration: opts.HoldDuration,
 		weekCount:    int32(opts.WeekCount),
 		now:          time.Now,
+		media:        opts.Media,
 	}
 }
 

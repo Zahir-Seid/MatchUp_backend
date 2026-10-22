@@ -14,6 +14,7 @@ import (
 	"github.com/Zahir-Seid/MatchUp_backend/internal/catalog"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/money"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/notification"
 )
@@ -38,9 +39,9 @@ type AdminFieldView struct {
 	UpdatedAt time.Time `json:"updated_at"`
 } //	@name	AdminFieldView
 
-func toAdminFieldView(f db.Field) AdminFieldView {
+func toAdminFieldView(f db.Field, galleries ...[]media.Image) AdminFieldView {
 	return AdminFieldView{
-		FieldView: catalog.ToFieldView(f),
+		FieldView: catalog.ToFieldView(f, galleries...),
 		IsActive:  f.IsActive,
 		CreatedAt: f.CreatedAt,
 		UpdatedAt: f.UpdatedAt,
@@ -54,41 +55,67 @@ func (s *Service) ListFields(ctx context.Context) ([]AdminFieldView, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list all fields: %w", err)
 	}
+	ids := make([]uuid.UUID, 0, len(rows))
+	for _, f := range rows {
+		ids = append(ids, f.ID)
+	}
+	galleries, err := s.fieldImages(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
 	views := make([]AdminFieldView, 0, len(rows))
 	for _, f := range rows {
-		views = append(views, toAdminFieldView(f))
+		views = append(views, toAdminFieldView(f, galleries[f.ID]))
 	}
 	return views, nil
 }
 
+func (s *Service) fieldImages(ctx context.Context, fieldIDs []uuid.UUID) (map[uuid.UUID][]media.Image, error) {
+	if s.media == nil || len(fieldIDs) == 0 {
+		return map[uuid.UUID][]media.Image{}, nil
+	}
+	return s.media.FieldImageMap(ctx, fieldIDs)
+}
+
 // FieldInput creates a field.
 type FieldInput struct {
-	Name     string
-	Location string
-	ImageURL *string
+	Name           string
+	Location       string
+	ImageIDs       []uuid.UUID
+	PrimaryImageID uuid.UUID
 }
 
 // CreateField adds a field to the catalog (PRD FR25).
 func (s *Service) CreateField(ctx context.Context, actor uuid.UUID, in FieldInput) (*AdminFieldView, error) {
+	if s.media == nil {
+		return nil, fmt.Errorf("create field: image service is not configured")
+	}
 	var out AdminFieldView
 	err := s.store.InTx(ctx, func(q *db.Queries) error {
 		field, err := q.CreateField(ctx, db.CreateFieldParams{
 			Name:     in.Name,
 			Location: in.Location,
-			ImageUrl: in.ImageURL,
 		})
 		if err != nil {
 			return fmt.Errorf("create field: %w", err)
 		}
-		out = toAdminFieldView(field)
+		if err := s.media.ReplaceFieldImages(ctx, q, actor, field.ID, in.ImageIDs, in.PrimaryImageID); err != nil {
+			return err
+		}
+		images, err := s.media.ListFieldImagesTx(ctx, q, field.ID)
+		if err != nil {
+			return err
+		}
+		out = toAdminFieldView(field, images)
 		return s.record(ctx, q, audit.Entry{
 			ActorID:    &actor,
 			Action:     audit.ActionFieldCreated,
 			TargetType: audit.TargetField,
 			TargetID:   field.ID.String(),
 			Metadata: map[string]any{
-				"name":     field.Name,
-				"location": field.Location,
+				"name":        field.Name,
+				"location":    field.Location,
+				"image_count": len(images),
 			},
 		})
 	})
@@ -99,18 +126,23 @@ func (s *Service) CreateField(ctx context.Context, actor uuid.UUID, in FieldInpu
 }
 
 // FieldPatch updates a field. A nil member means "leave alone", which is what
-// the COALESCE in the query expresses.
+// the COALESCE in the query expresses. A nil ImageIDs leaves the gallery alone;
+// a non-nil slice replaces it entirely.
 type FieldPatch struct {
-	Name     *string
-	Location *string
-	ImageURL *string
-	IsActive *bool
+	Name           *string
+	Location       *string
+	IsActive       *bool
+	ImageIDs       *[]uuid.UUID
+	PrimaryImageID *uuid.UUID
 }
 
 // UpdateField edits a field. Deactivating one does not touch its games: the
 // flag only hides the field from discovery, and cancelling scheduled games is a
 // separate, deliberate act with its own notifications.
 func (s *Service) UpdateField(ctx context.Context, actor, id uuid.UUID, patch FieldPatch) (*AdminFieldView, error) {
+	if patch.ImageIDs != nil && s.media == nil {
+		return nil, fmt.Errorf("update field: image service is not configured")
+	}
 	var out AdminFieldView
 	err := s.store.InTx(ctx, func(q *db.Queries) error {
 		before, err := q.GetField(ctx, id)
@@ -120,12 +152,15 @@ func (s *Service) UpdateField(ctx context.Context, actor, id uuid.UUID, patch Fi
 			}
 			return fmt.Errorf("get field: %w", err)
 		}
+		beforeImages, err := s.fieldImagesTx(ctx, q, id)
+		if err != nil {
+			return err
+		}
 
 		field, err := q.UpdateField(ctx, db.UpdateFieldParams{
 			ID:       id,
 			Name:     patch.Name,
 			Location: patch.Location,
-			ImageUrl: patch.ImageURL,
 			IsActive: patch.IsActive,
 		})
 		if err != nil {
@@ -134,7 +169,20 @@ func (s *Service) UpdateField(ctx context.Context, actor, id uuid.UUID, patch Fi
 			}
 			return fmt.Errorf("update field: %w", err)
 		}
-		out = toAdminFieldView(field)
+
+		if patch.ImageIDs != nil {
+			if patch.PrimaryImageID == nil {
+				return httpx.ErrValidation.WithField("primary_image_id", "required when images change")
+			}
+			if err := s.media.ReplaceFieldImages(ctx, q, actor, id, *patch.ImageIDs, *patch.PrimaryImageID); err != nil {
+				return err
+			}
+		}
+		afterImages, err := s.fieldImagesTx(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		out = toAdminFieldView(field, afterImages)
 
 		return s.record(ctx, q, audit.Entry{
 			ActorID:    &actor,
@@ -145,8 +193,8 @@ func (s *Service) UpdateField(ctx context.Context, actor, id uuid.UUID, patch Fi
 				"changed": changedFields(map[string][2]any{
 					"name":      {before.Name, field.Name},
 					"location":  {before.Location, field.Location},
-					"image_url": {derefText(before.ImageUrl), derefText(field.ImageUrl)},
 					"is_active": {before.IsActive, field.IsActive},
+					"images":    {imageIDs(beforeImages), imageIDs(afterImages)},
 				}),
 			},
 		})
@@ -155,6 +203,27 @@ func (s *Service) UpdateField(ctx context.Context, actor, id uuid.UUID, patch Fi
 		return nil, err
 	}
 	return &out, nil
+}
+
+func (s *Service) fieldImagesTx(ctx context.Context, q *db.Queries, fieldID uuid.UUID) ([]media.Image, error) {
+	if s.media == nil {
+		return []media.Image{}, nil
+	}
+	return s.media.ListFieldImagesTx(ctx, q, fieldID)
+}
+
+func imageIDs(images []media.Image) string {
+	ids := make([]string, 0, len(images))
+	for _, img := range images {
+		id := img.ID.String()
+		if img.IsPrimary {
+			// Marking the primary keeps a pure primary change visible in the
+			// audit trail, not just a reorder.
+			id += "*"
+		}
+		ids = append(ids, id)
+	}
+	return strings.Join(ids, ",")
 }
 
 // changedFields keeps an audit entry to what actually moved. A diff of every
@@ -199,9 +268,9 @@ type AdminGameView struct {
 	UpdatedAt            time.Time `json:"updated_at"`
 } //	@name	AdminGameView
 
-func toAdminGameView(g db.Game, f db.Field) AdminGameView {
+func toAdminGameView(g db.Game, f db.Field, galleries ...[]media.Image) AdminGameView {
 	view := AdminGameView{
-		GameView:             catalog.ToGameView(g, f),
+		GameView:             catalog.ToGameView(g, f, galleries...),
 		SpotsTaken:           g.Capacity - g.SpotsRemaining,
 		CostToBusinessSantim: g.CostToBusinessSantim,
 		CreatedAt:            g.CreatedAt,
@@ -241,9 +310,17 @@ func (s *Service) ListGames(ctx context.Context, f GameFilter) (Page[AdminGameVi
 		return Page[AdminGameView]{}, fmt.Errorf("count games for admin: %w", err)
 	}
 
+	fieldIDs := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		fieldIDs = append(fieldIDs, row.Field.ID)
+	}
+	galleries, err := s.fieldImages(ctx, fieldIDs)
+	if err != nil {
+		return Page[AdminGameView]{}, err
+	}
 	items := make([]AdminGameView, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, toAdminGameView(row.Game, row.Field))
+		items = append(items, toAdminGameView(row.Game, row.Field, galleries[row.Field.ID]))
 	}
 	return newPage(items, total, f.Limit, f.Offset), nil
 }
@@ -257,7 +334,11 @@ func (s *Service) GetGame(ctx context.Context, id uuid.UUID) (*AdminGameView, er
 		}
 		return nil, fmt.Errorf("get game: %w", err)
 	}
-	view := toAdminGameView(row.Game, row.Field)
+	galleries, err := s.fieldImages(ctx, []uuid.UUID{row.Field.ID})
+	if err != nil {
+		return nil, err
+	}
+	view := toAdminGameView(row.Game, row.Field, galleries[row.Field.ID])
 	return &view, nil
 }
 
@@ -381,9 +462,13 @@ func (s *Service) CreateGame(ctx context.Context, actor uuid.UUID, in GameInput)
 	if err != nil {
 		return nil, fmt.Errorf("get field for response: %w", err)
 	}
+	galleries, err := s.fieldImages(ctx, []uuid.UUID{field.ID})
+	if err != nil {
+		return nil, err
+	}
 	views := make([]AdminGameView, 0, len(created))
 	for _, g := range created {
-		views = append(views, toAdminGameView(g, field))
+		views = append(views, toAdminGameView(g, field, galleries[field.ID]))
 	}
 	return views, nil
 }

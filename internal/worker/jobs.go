@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Zahir-Seid/MatchUp_backend/internal/booking"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/notification"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/payment"
 )
@@ -14,10 +15,11 @@ import (
 // operational targets: verification within a few seconds of submission (FR18),
 // holds released within the sweep window (FR13).
 type Cadence struct {
-	Verify      time.Duration
-	ExpirySweep time.Duration
-	Notify      time.Duration
-	Reconcile   time.Duration
+	Verify       time.Duration
+	ExpirySweep  time.Duration
+	Notify       time.Duration
+	Reconcile    time.Duration
+	ImageCleanup time.Duration
 	// StuckThreshold is how long a claim may sit before the reconciliation pass
 	// assumes the process holding it died. It is the ceiling every other job's
 	// timeout is derived from, because a run that outlives it would have its own
@@ -33,6 +35,7 @@ type Deps struct {
 	Verify     *payment.VerifyService
 	Sweeper    *booking.Sweeper
 	Dispatcher *notification.Dispatcher
+	Media      *media.Service
 	Cadence    Cadence
 }
 
@@ -92,6 +95,18 @@ func Standard(d Deps) []Job {
 				Run:      d.Dispatcher.DispatchEmails,
 			},
 		)
+	}
+
+	if d.Media != nil {
+		jobs = append(jobs, Job{
+			Name:     "field-image-cleanup",
+			Interval: nonZero(c.ImageCleanup, time.Hour),
+			Timeout:  time.Minute,
+			Run: func(ctx context.Context) (int, error) {
+				deleted, err := d.Media.CleanupExpired(ctx)
+				return int(deleted), err
+			},
+		})
 	}
 
 	if d.Verify != nil || d.Dispatcher != nil {

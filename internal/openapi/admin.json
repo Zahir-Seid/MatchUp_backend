@@ -24,6 +24,12 @@
           "image_url": {
             "type": "string"
           },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/FieldImage"
+            },
+            "type": "array"
+          },
           "is_active": {
             "type": "boolean"
           },
@@ -479,13 +485,19 @@
       },
       "CreateFieldRequest": {
         "properties": {
-          "image_url": {
-            "type": "string"
+          "image_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "location": {
             "type": "string"
           },
           "name": {
+            "type": "string"
+          },
+          "primary_image_id": {
             "type": "string"
           }
         },
@@ -669,6 +681,12 @@
           "image_url": {
             "type": "string"
           },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/FieldImage"
+            },
+            "type": "array"
+          },
           "location": {
             "type": "string"
           },
@@ -733,6 +751,38 @@
           },
           "to": {
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FieldImage": {
+        "properties": {
+          "byte_size": {
+            "type": "integer"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          },
+          "position": {
+            "type": "integer"
+          },
+          "thumbnail_url": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer"
           }
         },
         "type": "object"
@@ -1171,6 +1221,32 @@
         },
         "type": "object"
       },
+      "StagedFieldImage": {
+        "properties": {
+          "byte_size": {
+            "type": "integer"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "thumbnail_byte_size": {
+            "type": "integer"
+          },
+          "width": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "TokenPair": {
         "properties": {
           "access_expires_at": {
@@ -1207,8 +1283,11 @@
       },
       "UpdateFieldRequest": {
         "properties": {
-          "image_url": {
-            "type": "string"
+          "image_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "is_active": {
             "type": "boolean"
@@ -1217,6 +1296,9 @@
             "type": "string"
           },
           "name": {
+            "type": "string"
+          },
+          "primary_image_id": {
             "type": "string"
           }
         },
@@ -2246,6 +2328,222 @@
         ]
       }
     },
+    "/field-image-uploads": {
+      "post": {
+        "description": "Validates and stores one JPEG, PNG or WebP image, up to 5 MiB, and returns a staging id. The image is not public yet: pass its id in image_ids when creating or updating a field. Staged uploads expire after 24 hours.",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "description": "Image file (JPEG, PNG or WebP; max 5 MiB)",
+                    "format": "binary",
+                    "type": "string",
+                    "x-formData-name": "file"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StagedFieldImage"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Malformed multipart body"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "too many images are already pending"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "payload_too_large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "unsupported_media_type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "validation_failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Upload a field image",
+        "tags": [
+          "fields"
+        ]
+      }
+    },
+    "/field-image-uploads/{id}": {
+      "delete": {
+        "description": "Deletes one of the caller's unclaimed uploads, for example when the admin cancels the field form. Attached images are not deleted here; remove them by updating the field with the remaining image_ids.",
+        "parameters": [
+          {
+            "description": "Staged image id (UUID)",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "forbidden: the account is not an admin"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "not_found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Discard a staged field image",
+        "tags": [
+          "fields"
+        ]
+      }
+    },
     "/fields": {
       "get": {
         "description": "Every field in the catalog, active or retired: the dashboard needs to see what was deactivated in order to bring it back.",
@@ -2312,7 +2610,7 @@
         ]
       },
       "post": {
-        "description": "Adds a field to the catalog. The image is a link to externally hosted artwork; this service never stores files.",
+        "description": "Adds a field to the catalog with 1-5 previously uploaded images. Upload images with POST /field-image-uploads first; this call claims those staged ids. primary_image_id selects the image used for thumbnails and image_url.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2410,7 +2708,7 @@
     },
     "/fields/{id}": {
       "patch": {
-        "description": "A partial update: members left out are unchanged, and an explicit empty image_url clears the image. Deactivating a field only hides it from discovery; its games keep their own schedules.",
+        "description": "A partial update: members left out are unchanged. Sending image_ids replaces the whole gallery, in that order, and requires primary_image_id. Deactivating a field only hides it from discovery; its games keep their own schedules.",
         "parameters": [
           {
             "description": "Field id (UUID)",

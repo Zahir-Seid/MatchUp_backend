@@ -11,6 +11,7 @@ import (
 
 	"github.com/Zahir-Seid/MatchUp_backend/internal/db"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/httpx"
+	"github.com/Zahir-Seid/MatchUp_backend/internal/media"
 	"github.com/Zahir-Seid/MatchUp_backend/internal/money"
 )
 
@@ -30,10 +31,18 @@ const (
 // Service reads the catalog.
 type Service struct {
 	store *db.Store
+	media *media.Service
 }
 
-// NewService builds the catalog service.
-func NewService(store *db.Store) *Service { return &Service{store: store} }
+// NewService builds the catalog service. The media service may be omitted in
+// tests that do not render field artwork.
+func NewService(store *db.Store, mediaSvc ...*media.Service) *Service {
+	s := &Service{store: store}
+	if len(mediaSvc) > 0 {
+		s.media = mediaSvc[0]
+	}
+	return s
+}
 
 // GameFilter is the discovery query (PRD FR7).
 type GameFilter struct {
@@ -69,14 +78,20 @@ type GameView struct {
 
 // FieldView is a field as the app renders it.
 type FieldView struct {
-	ID       uuid.UUID `json:"id"`
-	Name     string    `json:"name"`
-	Location string    `json:"location"`
-	ImageURL *string   `json:"image_url,omitempty"`
+	ID       uuid.UUID     `json:"id"`
+	Name     string        `json:"name"`
+	Location string        `json:"location"`
+	ImageURL *string       `json:"image_url,omitempty"`
+	Images   []media.Image `json:"images"`
 } //	@name	Field
 
-// ToGameView projects a game row and its field into the API shape.
-func ToGameView(game db.Game, field db.Field) GameView {
+// ToGameView projects a game row and its field into the API shape. The
+// optional gallery is the field's attached images, already in display order.
+func ToGameView(game db.Game, field db.Field, galleries ...[]media.Image) GameView {
+	var images []media.Image
+	if len(galleries) > 0 {
+		images = galleries[0]
+	}
 	return GameView{
 		ID:                   game.ID,
 		SeriesID:             game.SeriesID,
@@ -91,17 +106,26 @@ func ToGameView(game db.Game, field db.Field) GameView {
 		IsFull:               game.SpotsRemaining <= 0,
 		Status:               game.Status,
 		IsRecurring:          game.SeriesID != nil,
-		Field:                ToFieldView(field),
+		Field:                ToFieldView(field, images),
 	}
 }
 
-// ToFieldView projects a field row into the API shape.
-func ToFieldView(field db.Field) FieldView {
+// ToFieldView projects a field row into the API shape. The optional gallery is
+// the field's attached images, already in display order.
+func ToFieldView(field db.Field, galleries ...[]media.Image) FieldView {
+	var images []media.Image
+	if len(galleries) > 0 {
+		images = galleries[0]
+	}
+	if images == nil {
+		images = []media.Image{}
+	}
 	return FieldView{
 		ID:       field.ID,
 		Name:     field.Name,
 		Location: field.Location,
-		ImageURL: field.ImageUrl,
+		ImageURL: media.PrimaryImageURL(images),
+		Images:   images,
 	}
 }
 
@@ -120,9 +144,18 @@ func (s *Service) ListGames(ctx context.Context, f GameFilter) ([]GameView, erro
 		return nil, fmt.Errorf("list upcoming games: %w", err)
 	}
 
+	fieldIDs := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		fieldIDs = append(fieldIDs, row.Field.ID)
+	}
+	galleries, err := s.galleries(ctx, fieldIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	views := make([]GameView, 0, len(rows))
 	for _, row := range rows {
-		views = append(views, ToGameView(row.Game, row.Field))
+		views = append(views, ToGameView(row.Game, row.Field, galleries[row.Field.ID]))
 	}
 	return views, nil
 }
@@ -136,7 +169,11 @@ func (s *Service) GetGame(ctx context.Context, id uuid.UUID) (*GameView, error) 
 		}
 		return nil, fmt.Errorf("get game: %w", err)
 	}
-	view := ToGameView(row.Game, row.Field)
+	galleries, err := s.galleries(ctx, []uuid.UUID{row.Field.ID})
+	if err != nil {
+		return nil, err
+	}
+	view := ToGameView(row.Game, row.Field, galleries[row.Field.ID])
 	return &view, nil
 }
 
@@ -146,9 +183,40 @@ func (s *Service) ListFields(ctx context.Context) ([]FieldView, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list active fields: %w", err)
 	}
+	ids := make([]uuid.UUID, 0, len(rows))
+	for _, field := range rows {
+		ids = append(ids, field.ID)
+	}
+	galleries, err := s.galleries(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
 	views := make([]FieldView, 0, len(rows))
 	for _, field := range rows {
-		views = append(views, ToFieldView(field))
+		views = append(views, ToFieldView(field, galleries[field.ID]))
 	}
 	return views, nil
+}
+
+func (s *Service) galleries(ctx context.Context, fieldIDs []uuid.UUID) (map[uuid.UUID][]media.Image, error) {
+	if s.media == nil || len(fieldIDs) == 0 {
+		return map[uuid.UUID][]media.Image{}, nil
+	}
+	return s.media.FieldImageMap(ctx, fieldIDs)
+}
+
+// GetImage returns a public display image.
+func (s *Service) GetImage(ctx context.Context, fieldID, imageID uuid.UUID) (*media.ImageBytes, error) {
+	if s.media == nil {
+		return nil, httpx.ErrNotFound
+	}
+	return s.media.GetPublicImage(ctx, fieldID, imageID)
+}
+
+// GetThumbnail returns a public thumbnail.
+func (s *Service) GetThumbnail(ctx context.Context, fieldID, imageID uuid.UUID) (*media.ImageBytes, error) {
+	if s.media == nil {
+		return nil, httpx.ErrNotFound
+	}
+	return s.media.GetPublicThumbnail(ctx, fieldID, imageID)
 }
