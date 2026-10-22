@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -29,6 +30,7 @@ type fakeService struct {
 	role        string
 	user        *db.User
 	err         error
+	roleErrs    []error
 }
 
 func (f *fakeService) CreateAccount(_ context.Context, in auth.CreateAccountInput) (*db.User, error) {
@@ -43,7 +45,7 @@ func (f *fakeService) CreateAccount(_ context.Context, in auth.CreateAccountInpu
 	return &db.User{ID: uuid.New(), Email: in.Email, Role: in.Role}, nil
 }
 
-func (f *fakeService) SetPasswordByEmail(_ context.Context, email, password string) (*db.User, error) {
+func (f *fakeService) SetAdminPasswordByEmail(_ context.Context, email, password string) (*db.User, error) {
 	f.resetCalls++
 	f.resetEmail, f.resetPW = email, password
 	if f.err != nil {
@@ -58,6 +60,13 @@ func (f *fakeService) SetPasswordByEmail(_ context.Context, email, password stri
 func (f *fakeService) SetRoleByEmail(_ context.Context, email, role string) (*db.User, bool, error) {
 	f.roleCalls++
 	f.roleEmail, f.role = email, role
+	if len(f.roleErrs) > 0 {
+		err := f.roleErrs[0]
+		f.roleErrs = f.roleErrs[1:]
+		if err != nil {
+			return nil, false, err
+		}
+	}
 	if f.err != nil {
 		return nil, false, f.err
 	}
@@ -264,4 +273,51 @@ func TestServiceErrorReturnsOneAndPrintsMessage(t *testing.T) {
 
 	assert.Equal(t, 1, code)
 	assert.Contains(t, errOut.String(), "connection refused")
+}
+
+func TestPromoteRetriesUnknownEmailInTerminal(t *testing.T) {
+	user := &db.User{ID: uuid.New(), Email: "right@example.com", Role: auth.RolePlayer}
+	svc := &fakeService{
+		user: user,
+		roleErrs: []error{
+			httpx.NewError(404, httpx.CodeNotFound, "No account uses that email address."),
+			nil,
+		},
+	}
+	rec := &fakeAuditor{}
+	var out, errOut bytes.Buffer
+	p := &prompter{
+		in:  strings.NewReader("wrong@example.com\nyes\nright@example.com\nyes\n"),
+		out: &out,
+		tty: true,
+	}
+	p.br = bufio.NewReader(p.in)
+
+	code := executeWith(context.Background(), &request{cmd: cmdPromote},
+		p.in, &out, &errOut, svc, rec, p)
+
+	require.Zero(t, code, errOut.String())
+	assert.Equal(t, 2, svc.roleCalls)
+	assert.Equal(t, "right@example.com", svc.roleEmail)
+	assert.Contains(t, errOut.String(), "No account uses that email")
+	require.Len(t, rec.entries, 1)
+}
+
+func TestConfirmAcceptsYesNoAndRetriesOtherAnswers(t *testing.T) {
+	var out bytes.Buffer
+	p := &prompter{in: strings.NewReader("yea\nn\n"), out: &out, tty: true}
+	p.br = bufio.NewReader(p.in)
+
+	ok, err := p.confirm("Proceed?", false)
+
+	require.NoError(t, err)
+	assert.False(t, ok)
+	assert.Contains(t, out.String(), "Please answer yes or no")
+}
+
+func TestLookupErrorsAreRetryable(t *testing.T) {
+	assert.True(t, isLookupError(httpx.NewError(404, httpx.CodeNotFound, "missing")))
+	assert.True(t, isLookupError(httpx.NewError(403, httpx.CodeForbidden, "player")))
+	assert.False(t, isLookupError(httpx.NewError(409, httpx.CodeConflict, "last admin")))
+	assert.False(t, isLookupError(httpx.NewError(500, httpx.CodeInternal, "boom")))
 }

@@ -36,27 +36,31 @@ const usage = `MatchUp operator CLI
 
 Usage:
   cli createsuperuser [--email ADDRESS] [--full-name NAME] [--phone NUMBER] [--password-stdin]
-  cli reset-password --email ADDRESS [--yes] [--password-stdin]
-  cli promote --email ADDRESS [--yes]
-  cli demote  --email ADDRESS [--yes]
+  cli reset-password [--email ADDRESS] [--yes] [--password-stdin]
+  cli promote [--email ADDRESS] [--yes]
+  cli demote  [--email ADDRESS] [--yes]
 
 Commands:
   createsuperuser  Create an active, email-verified admin account.
-  reset-password   Set a new password and revoke all sessions.
+  reset-password   Reset an admin password and revoke their sessions. Players
+                   use the in-app reset flow.
   promote          Change a player account to admin.
   demote           Change an admin account to player. The last active admin
                    cannot be demoted.
 
 Flags:
-  --email           Account address. Prompted for createsuperuser.
+  --email           Account address. Prompted when omitted.
   --full-name       Display name. Prompted for createsuperuser.
   --phone           Ethiopian mobile number. Prompted for createsuperuser.
+                    Accepted as 09..., 07..., +2519..., +2517... and stored
+                    canonically as +251....
   --password-stdin  Read one password line from stdin instead of prompting.
                     Use this in automation; never pass a password as an argument.
   --yes             Skip the confirmation prompt (required when stdin is not a
                     terminal) for reset-password, promote and demote.
 
 Passwords are never echoed, logged, or accepted as command-line arguments.
+Admin passwords require at least 10 characters.
 `
 
 type command string
@@ -83,7 +87,7 @@ type request struct {
 // without a database.
 type accountService interface {
 	CreateAccount(context.Context, auth.CreateAccountInput) (*db.User, error)
-	SetPasswordByEmail(context.Context, string, string) (*db.User, error)
+	SetAdminPasswordByEmail(context.Context, string, string) (*db.User, error)
 	SetRoleByEmail(context.Context, string, string) (*db.User, bool, error)
 }
 
@@ -181,112 +185,187 @@ func parse(args []string, errOut io.Writer) (*request, error) {
 	return req, nil
 }
 
-func execute(ctx context.Context, req *request, in io.Reader, out, errOut io.Writer, svc accountService, rec auditor) int {
-	p := newPrompter(in, out)
+const maxServiceAttempts = 3
 
+func execute(ctx context.Context, req *request, in io.Reader, out, errOut io.Writer, svc accountService, rec auditor) int {
+	return executeWith(ctx, req, in, out, errOut, svc, rec, newPrompter(in, out))
+}
+
+func executeWith(ctx context.Context, req *request, in io.Reader, out, errOut io.Writer, svc accountService, rec auditor, p *prompter) int {
 	switch req.cmd {
 	case cmdCreateSuper:
-		ident, err := p.identity(req)
-		if err != nil {
-			return fail(errOut, err, 2)
+		var password string
+		attempts := 0
+		for {
+			ident, err := p.identity(req, errOut)
+			if err != nil {
+				return fail(errOut, err, 2)
+			}
+			// Keep the accepted values for the next pass, so a retry only
+			// asks for the field that failed.
+			req.email, req.fullName, req.phone = ident.email, ident.fullName, ident.phone
+
+			if password == "" {
+				password, err = p.password(req.passwordStdin, true)
+				if err != nil {
+					return fail(errOut, err, 2)
+				}
+			}
+
+			user, err := svc.CreateAccount(ctx, auth.CreateAccountInput{
+				FullName:          ident.fullName,
+				Email:             ident.email,
+				Password:          password,
+				Phone:             ident.phone,
+				Role:              auth.RoleAdmin,
+				MarkEmailVerified: true,
+			})
+			if err == nil {
+				record(ctx, rec, audit.Entry{
+					Action:     audit.ActionUserCreated,
+					TargetType: audit.TargetUser,
+					TargetID:   user.ID.String(),
+					Reason:     "created by operator CLI",
+					Metadata: map[string]any{
+						"email":  user.Email,
+						"role":   user.Role,
+						"source": "cli",
+					},
+				})
+				fmt.Fprintf(out, "created admin %s (%q)\n", user.ID, user.Email)
+				return 0
+			}
+
+			apiErr := asAPIError(err)
+			if !p.tty || apiErr == nil {
+				return fail(errOut, err, 1)
+			}
+			switch {
+			case apiErr.Code == httpx.CodeEmailInUse:
+				printError(errOut, err)
+				attempts++
+				if attempts >= maxServiceAttempts {
+					return fail(errOut, err, 1)
+				}
+				req.email = ""
+			case apiErr.Fields["password"] != "":
+				printError(errOut, err)
+				password = ""
+			default:
+				return fail(errOut, err, 1)
+			}
 		}
-		password, err := p.password(req.passwordStdin, true)
-		if err != nil {
-			return fail(errOut, err, 2)
-		}
-		user, err := svc.CreateAccount(ctx, auth.CreateAccountInput{
-			FullName:          ident.fullName,
-			Email:             ident.email,
-			Password:          password,
-			Phone:             ident.phone,
-			Role:              auth.RoleAdmin,
-			MarkEmailVerified: true,
-		})
-		if err != nil {
-			return fail(errOut, err, 1)
-		}
-		record(ctx, rec, audit.Entry{
-			Action:     audit.ActionUserCreated,
-			TargetType: audit.TargetUser,
-			TargetID:   user.ID.String(),
-			Reason:     "created by operator CLI",
-			Metadata: map[string]any{
-				"email":  user.Email,
-				"role":   user.Role,
-				"source": "cli",
-			},
-		})
-		fmt.Fprintf(out, "created admin %s (%q)\n", user.ID, user.Email)
-		return 0
 
 	case cmdReset:
-		email, err := validateEmailFlag(req.email)
-		if err != nil {
-			return fail(errOut, err, 2)
+		attempts := 0
+		for {
+			email, err := p.emailValue(req.email, errOut)
+			if err != nil {
+				return fail(errOut, err, 2)
+			}
+			if ok, err := p.confirm(fmt.Sprintf("Reset the admin password for %q?", email), req.yes); err != nil {
+				return fail(errOut, err, 1)
+			} else if !ok {
+				fmt.Fprintln(out, "aborted")
+				return 1
+			}
+
+			password := ""
+			for {
+				if password == "" {
+					if password, err = p.password(req.passwordStdin, true); err != nil {
+						return fail(errOut, err, 2)
+					}
+				}
+
+				user, err := svc.SetAdminPasswordByEmail(ctx, email, password)
+				if err == nil {
+					record(ctx, rec, audit.Entry{
+						Action:     audit.ActionUserPasswordReset,
+						TargetType: audit.TargetUser,
+						TargetID:   user.ID.String(),
+						Reason:     "password reset by operator CLI",
+						Metadata:   map[string]any{"email": user.Email, "source": "cli"},
+					})
+					fmt.Fprintf(out, "password reset for %s (%q); all sessions revoked\n", user.ID, user.Email)
+					return 0
+				}
+
+				apiErr := asAPIError(err)
+				if !p.tty || apiErr == nil {
+					return fail(errOut, err, 1)
+				}
+				if apiErr.Fields["password"] != "" {
+					printError(errOut, err)
+					password = ""
+					continue
+				}
+				if !isLookupError(apiErr) {
+					return fail(errOut, err, 1)
+				}
+				printError(errOut, err)
+				attempts++
+				if attempts >= maxServiceAttempts {
+					return fail(errOut, err, 1)
+				}
+				req.email = ""
+				break
+			}
 		}
-		if ok, err := p.confirm(fmt.Sprintf("Reset the password for %q?", email), req.yes); err != nil {
-			return fail(errOut, err, 1)
-		} else if !ok {
-			fmt.Fprintln(out, "aborted")
-			return 1
-		}
-		password, err := p.password(req.passwordStdin, true)
-		if err != nil {
-			return fail(errOut, err, 2)
-		}
-		user, err := svc.SetPasswordByEmail(ctx, email, password)
-		if err != nil {
-			return fail(errOut, err, 1)
-		}
-		record(ctx, rec, audit.Entry{
-			Action:     audit.ActionUserPasswordReset,
-			TargetType: audit.TargetUser,
-			TargetID:   user.ID.String(),
-			Reason:     "password reset by operator CLI",
-			Metadata:   map[string]any{"email": user.Email, "source": "cli"},
-		})
-		fmt.Fprintf(out, "password reset for %s (%q); all sessions revoked\n", user.ID, user.Email)
-		return 0
 
 	case cmdPromote, cmdDemote:
-		email, err := validateEmailFlag(req.email)
-		if err != nil {
-			return fail(errOut, err, 2)
-		}
 		to, from := auth.RoleAdmin, auth.RolePlayer
 		verb := "Promote"
 		if req.cmd == cmdDemote {
 			to, from = auth.RolePlayer, auth.RoleAdmin
 			verb = "Demote"
 		}
-		if ok, err := p.confirm(fmt.Sprintf("%s %q (%s -> %s)?", verb, email, from, to), req.yes); err != nil {
-			return fail(errOut, err, 1)
-		} else if !ok {
-			fmt.Fprintln(out, "aborted")
-			return 1
+		attempts := 0
+		for {
+			email, err := p.emailValue(req.email, errOut)
+			if err != nil {
+				return fail(errOut, err, 2)
+			}
+			if ok, err := p.confirm(fmt.Sprintf("%s %q (%s -> %s)?", verb, email, from, to), req.yes); err != nil {
+				return fail(errOut, err, 1)
+			} else if !ok {
+				fmt.Fprintln(out, "aborted")
+				return 1
+			}
+
+			user, changed, err := svc.SetRoleByEmail(ctx, email, to)
+			if err == nil {
+				if !changed {
+					fmt.Fprintf(out, "no change: %s (%q) is already %s\n", user.ID, user.Email, user.Role)
+					return 0
+				}
+				record(ctx, rec, audit.Entry{
+					Action:     audit.ActionUserRoleChanged,
+					TargetType: audit.TargetUser,
+					TargetID:   user.ID.String(),
+					Reason:     "role change by operator CLI",
+					Metadata: map[string]any{
+						"email":  user.Email,
+						"from":   from,
+						"to":     user.Role,
+						"source": "cli",
+					},
+				})
+				fmt.Fprintf(out, "role changed for %s (%q): %s -> %s\n", user.ID, user.Email, from, user.Role)
+				return 0
+			}
+
+			apiErr := asAPIError(err)
+			if !p.tty || apiErr == nil || apiErr.Code != httpx.CodeNotFound {
+				return fail(errOut, err, 1)
+			}
+			printError(errOut, err)
+			attempts++
+			if attempts >= maxServiceAttempts {
+				return fail(errOut, err, 1)
+			}
+			req.email = ""
 		}
-		user, changed, err := svc.SetRoleByEmail(ctx, email, to)
-		if err != nil {
-			return fail(errOut, err, 1)
-		}
-		if !changed {
-			fmt.Fprintf(out, "no change: %s (%q) is already %s\n", user.ID, user.Email, user.Role)
-			return 0
-		}
-		record(ctx, rec, audit.Entry{
-			Action:     audit.ActionUserRoleChanged,
-			TargetType: audit.TargetUser,
-			TargetID:   user.ID.String(),
-			Reason:     "role change by operator CLI",
-			Metadata: map[string]any{
-				"email":  user.Email,
-				"from":   from,
-				"to":     user.Role,
-				"source": "cli",
-			},
-		})
-		fmt.Fprintf(out, "role changed for %s (%q): %s -> %s\n", user.ID, user.Email, from, user.Role)
-		return 0
 	}
 
 	return fail(errOut, errors.New("unknown command"), 2)
@@ -298,48 +377,59 @@ type identity struct {
 	phone    string
 }
 
-// identity gathers and validates the createsuperuser fields. Validation uses
-// the same helpers as the HTTP signup handler, so the CLI cannot create an
-// account the API would have rejected.
-func (p *prompter) identity(req *request) (identity, error) {
-	var out identity
-	var err error
-
-	out.email = req.email
-	if strings.TrimSpace(out.email) == "" {
-		if out.email, err = p.line("Email: "); err != nil {
-			return identity{}, fmt.Errorf("--email is required when stdin is not a terminal")
-		}
-	}
-	out.fullName = req.fullName
-	if strings.TrimSpace(out.fullName) == "" {
-		if out.fullName, err = p.line("Full name: "); err != nil {
-			return identity{}, fmt.Errorf("--full-name is required when stdin is not a terminal")
-		}
-	}
-	out.phone = req.phone
-	if strings.TrimSpace(out.phone) == "" {
-		if out.phone, err = p.line("Phone: "); err != nil {
-			return identity{}, fmt.Errorf("--phone is required when stdin is not a terminal")
-		}
-	}
-
-	v := httpx.NewValidator()
-	out.fullName = v.Required("full_name", out.fullName)
-	v.Length("full_name", out.fullName, 2, 120)
-	out.email = v.Email("email", out.email)
-	if len(out.email) > 254 {
-		v.Add("email", "must be at most 254 characters")
-	}
-	out.phone = v.Required("phone", out.phone)
-	out.phone = v.Phone("phone", out.phone)
-	if err := v.Err(); err != nil {
+// identity gathers and validates the createsuperuser fields, re-asking for the
+// failing field rather than restarting the command. Validation uses the same
+// helpers as the HTTP signup handler, so the CLI cannot create an account the
+// API would have rejected.
+func (p *prompter) identity(req *request, errOut io.Writer) (identity, error) {
+	email, err := p.text("Email: ", req.email, "--email", errOut, validateEmailValue)
+	if err != nil {
 		return identity{}, err
 	}
-	return out, nil
+	fullName, err := p.text("Full name: ", req.fullName, "--full-name", errOut, validateFullName)
+	if err != nil {
+		return identity{}, err
+	}
+	phone, err := p.text("Phone: ", req.phone, "--phone", errOut, validatePhoneValue)
+	if err != nil {
+		return identity{}, err
+	}
+	return identity{email: email, fullName: fullName, phone: phone}, nil
 }
 
-func validateEmailFlag(raw string) (string, error) {
+// text prompts until the value passes validation. A terminal user keeps the
+// valid fields and re-enters only this one; a script fails fast instead of
+// looping on input nobody can change.
+func (p *prompter) text(label, initial, flag string, errOut io.Writer, validate func(string) (string, error)) (string, error) {
+	value := initial
+	for {
+		if strings.TrimSpace(value) == "" {
+			if !p.tty {
+				return "", fmt.Errorf("%s is required when stdin is not a terminal", flag)
+			}
+			line, err := p.line(label)
+			if err != nil {
+				return "", err
+			}
+			value = line
+		}
+		normalized, err := validate(value)
+		if err == nil {
+			return normalized, nil
+		}
+		printError(errOut, err)
+		if !p.tty {
+			return "", err
+		}
+		value = ""
+	}
+}
+
+func (p *prompter) emailValue(initial string, errOut io.Writer) (string, error) {
+	return p.text("Email: ", initial, "--email", errOut, validateEmailValue)
+}
+
+func validateEmailValue(raw string) (string, error) {
 	v := httpx.NewValidator()
 	email := v.Email("email", raw)
 	if len(email) > 254 {
@@ -349,6 +439,40 @@ func validateEmailFlag(raw string) (string, error) {
 		return "", err
 	}
 	return email, nil
+}
+
+func validateFullName(raw string) (string, error) {
+	v := httpx.NewValidator()
+	name := v.Required("full_name", raw)
+	v.Length("full_name", name, 2, 120)
+	if err := v.Err(); err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
+func validatePhoneValue(raw string) (string, error) {
+	v := httpx.NewValidator()
+	phone := v.Required("phone", raw)
+	phone = v.Phone("phone", phone)
+	if err := v.Err(); err != nil {
+		return "", err
+	}
+	return phone, nil
+}
+
+func asAPIError(err error) *httpx.Error {
+	var apiErr *httpx.Error
+	if errors.As(err, &apiErr) {
+		return apiErr
+	}
+	return nil
+}
+
+// isLookupError is the retryable kind: the address was mistyped or names an
+// account the CLI does not manage. A different email can fix both.
+func isLookupError(err *httpx.Error) bool {
+	return err.Code == httpx.CodeNotFound || err.Code == httpx.CodeForbidden
 }
 
 type prompter struct {
@@ -376,6 +500,9 @@ func (p *prompter) line(label string) (string, error) {
 		return "", err
 	}
 	line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
+	if line == "" && errors.Is(err, io.EOF) {
+		return "", errors.New("end of input")
+	}
 	if len(line) > 1024 {
 		return "", errors.New("input is too long")
 	}
@@ -384,6 +511,8 @@ func (p *prompter) line(label string) (string, error) {
 
 // confirm returns false without asking when the input is not a terminal and
 // --yes was not passed: an unattended script must state its intent explicitly.
+// A terminal user who types something else is asked again instead of having the
+// whole command thrown away.
 func (p *prompter) confirm(question string, yes bool) (bool, error) {
 	if yes {
 		return true, nil
@@ -391,12 +520,25 @@ func (p *prompter) confirm(question string, yes bool) (bool, error) {
 	if !p.tty {
 		return false, errors.New("confirmation required when stdin is not a terminal; pass --yes")
 	}
-	fmt.Fprintf(p.out, "%s Type \"yes\" to continue: ", question)
-	line, err := p.br.ReadString('\n')
-	if err != nil && !errors.Is(err, io.EOF) {
-		return false, err
+	for attempt := 0; attempt < maxServiceAttempts; attempt++ {
+		fmt.Fprintf(p.out, "%s Type yes or no: ", question)
+		line, err := p.br.ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
+			return false, err
+		}
+		switch strings.ToLower(strings.TrimSpace(line)) {
+		case "y", "yes":
+			return true, nil
+		case "n", "no":
+			return false, nil
+		case "":
+			if errors.Is(err, io.EOF) {
+				return false, nil
+			}
+		}
+		fmt.Fprintln(p.out, "Please answer yes or no.")
 	}
-	return strings.EqualFold(strings.TrimSpace(line), "yes"), nil
+	return false, errors.New("no valid confirmation after 3 attempts")
 }
 
 // password reads a secret from the terminal, or one line from stdin when the
@@ -415,27 +557,39 @@ func (p *prompter) password(stdinFlag, confirm bool) (string, error) {
 	if !ok {
 		return "", errors.New("cannot prompt for a password on this input")
 	}
-	fmt.Fprint(p.out, "Password: ")
-	first, err := term.ReadPassword(int(f.Fd()))
-	fmt.Fprintln(p.out)
-	if err != nil {
-		return "", fmt.Errorf("read password: %w", err)
-	}
-	if len(first) == 0 {
-		return "", errors.New("password must not be empty")
-	}
-	if confirm {
-		fmt.Fprint(p.out, "Password (again): ")
-		second, err := term.ReadPassword(int(f.Fd()))
+
+	readSecret := func(label string) ([]byte, error) {
+		fmt.Fprint(p.out, label)
+		secret, err := term.ReadPassword(int(f.Fd()))
 		fmt.Fprintln(p.out)
+		if err != nil {
+			return nil, err
+		}
+		return secret, nil
+	}
+
+	for attempt := 0; attempt < maxServiceAttempts; attempt++ {
+		first, err := readSecret("Password: ")
+		if err != nil {
+			return "", fmt.Errorf("read password: %w", err)
+		}
+		if len(first) == 0 {
+			fmt.Fprintln(p.out, "Password must not be empty. Try again.")
+			continue
+		}
+		if !confirm {
+			return string(first), nil
+		}
+		second, err := readSecret("Password (again): ")
 		if err != nil {
 			return "", fmt.Errorf("read password confirmation: %w", err)
 		}
-		if string(first) != string(second) {
-			return "", errors.New("passwords do not match")
+		if string(first) == string(second) {
+			return string(first), nil
 		}
+		fmt.Fprintln(p.out, "Passwords do not match. Try again.")
 	}
-	return string(first), nil
+	return "", errors.New("password was not confirmed after 3 attempts")
 }
 
 const maxPasswordInput = 4096
