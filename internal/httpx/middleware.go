@@ -10,9 +10,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 )
+
+// headerAuthUserID carries the authenticated user from RequireAuth back out to
+// Logging. Context values only flow inward, so the outer logger cannot read the
+// principal the inner middleware attached; this internal header is the return
+// path. Logging deletes any inbound value first, so a client cannot spoof it,
+// and RequireAuth sets it only after a token verifies.
+const headerAuthUserID = "X-Auth-UserID"
 
 // RequestID assigns each request a correlation ID, preferring a client-supplied
 // X-Request-ID so a mobile client can tie its own logs to server logs, and
@@ -26,29 +34,6 @@ func RequestID(next http.Handler) http.Handler {
 		w.Header().Set("X-Request-ID", id)
 		next.ServeHTTP(w, r.WithContext(WithRequestID(r.Context(), id)))
 	})
-}
-
-// statusRecorder captures the response status and size for access logging.
-type statusRecorder struct {
-	http.ResponseWriter
-	status int
-	bytes  int
-}
-
-func (s *statusRecorder) WriteHeader(code int) {
-	if s.status == 0 {
-		s.status = code
-	}
-	s.ResponseWriter.WriteHeader(code)
-}
-
-func (s *statusRecorder) Write(b []byte) (int, error) {
-	if s.status == 0 {
-		s.status = http.StatusOK
-	}
-	n, err := s.ResponseWriter.Write(b)
-	s.bytes += n
-	return n, err
 }
 
 // sensitivePathFragments marks routes whose request and response bodies must
@@ -66,6 +51,10 @@ func Logging(base *slog.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			requestID := RequestIDFrom(r.Context())
+			// Stripped before anything downstream runs; RequireAuth sets it
+			// again only after a token verifies, so an inbound value is never
+			// trusted.
+			r.Header.Del(headerAuthUserID)
 
 			log := base.With(
 				slog.String("request_id", requestID),
@@ -73,32 +62,34 @@ func Logging(base *slog.Logger) func(http.Handler) http.Handler {
 				slog.String("path", r.URL.Path),
 			)
 			ctx := WithLogger(r.Context(), log)
-			rec := &statusRecorder{ResponseWriter: w}
+			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
-			next.ServeHTTP(rec, r.WithContext(ctx))
+			next.ServeHTTP(ww, r.WithContext(ctx))
 
-			if rec.status == 0 {
-				rec.status = http.StatusOK
+			status := ww.Status()
+			if status == 0 {
+				status = http.StatusOK
 			}
 			attrs := []any{
-				slog.Int("status", rec.status),
-				slog.Int("bytes", rec.bytes),
+				slog.Int("status", status),
+				slog.Int("bytes", ww.BytesWritten()),
 				slog.Duration("duration", time.Since(start).Round(time.Millisecond)),
-				slog.String("ip", ClientIP(r)),
+				slog.String("real_ip", ClientIP(r)),
 			}
 			if q := r.URL.RawQuery; q != "" && !isSensitivePath(r.URL.Path) {
 				attrs = append(attrs, slog.String("query", q))
 			}
-			// The principal is attached downstream, so read it from the
-			// request context after the handler has run.
-			if p, ok := PrincipalFrom(r.Context()); ok {
-				attrs = append(attrs, slog.String("user_id", p.UserID.String()))
+			// RequireAuth/OptionalAuth write this header on the shared request
+			// header map, which is how the identity crosses back out of the
+			// inner context.
+			if userID := r.Header.Get(headerAuthUserID); userID != "" {
+				attrs = append(attrs, slog.String("user_id", userID))
 			}
 
 			switch {
-			case rec.status >= 500:
+			case status >= 500:
 				log.Error("request failed", attrs...)
-			case rec.status >= 400:
+			case status >= 400:
 				log.Warn("request rejected", attrs...)
 			default:
 				log.Info("request", attrs...)

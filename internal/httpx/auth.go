@@ -28,6 +28,9 @@ func RequireAuth(v TokenVerifier) func(http.Handler) http.Handler {
 				Fail(w, r, err)
 				return
 			}
+			// Set on the shared request header map so Logging, an outer
+			// middleware, can report the user; context values only flow inward.
+			r.Header.Set(headerAuthUserID, principal.UserID.String())
 			next.ServeHTTP(w, r.WithContext(WithPrincipal(r.Context(), principal)))
 		})
 	}
@@ -42,6 +45,7 @@ func OptionalAuth(v TokenVerifier) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if token, ok := bearerToken(r); ok {
 				if principal, err := v.VerifyAccessToken(r.Context(), token); err == nil {
+					r.Header.Set(headerAuthUserID, principal.UserID.String())
 					r = r.WithContext(WithPrincipal(r.Context(), principal))
 				}
 			}
