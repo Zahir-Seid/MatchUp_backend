@@ -1,4 +1,4 @@
-# MatchUp backend. One module, three binaries: api, admin, worker.
+# MatchUp backend. One module, four binaries: api, admin, worker, cli.
 #
 # The sqlc and goose binaries live in the module cache's bin directory rather
 # than on PATH, so every target that needs them names them explicitly. Run
@@ -17,7 +17,7 @@ SWAG_VER   := v1.16.6
 # read .env, so a non-default database has to be passed in or exported.
 DATABASE_URL ?= postgres://matchup:localdev@localhost:55432/matchup?sslmode=disable
 
-BINARIES := api admin worker
+BINARIES := api admin worker cli
 
 .DEFAULT_GOAL := help
 .PHONY: help env tools build $(addprefix run-,$(BINARIES)) generate docs docs-fmt \
@@ -38,7 +38,7 @@ tools: ## Install the pinned sqlc, goose and swag binaries
 	go install github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VER)
 	go install github.com/swaggo/swag/cmd/swag@$(SWAG_VER)
 
-build: ## Build all three binaries into bin/
+build: ## Build all four binaries into bin/
 	@mkdir -p bin
 	$(foreach b,$(BINARIES),go build -trimpath -o bin/$(b) ./cmd/$(b) &&) true
 
@@ -50,6 +50,9 @@ run-admin: ## Run the admin API from source
 
 run-worker: ## Run the background worker from source
 	go run ./cmd/worker
+
+run-cli: ## Run the operator CLI: make run-cli ARGS="promote --email a@b.com"
+	go run ./cmd/cli $(ARGS)
 
 generate: ## Regenerate internal/db from migrations and queries
 	$(SQLC) generate

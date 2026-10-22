@@ -39,6 +39,11 @@ const (
 	ActionSeriesCreated     = "series.created"
 	ActionUserRoleChanged   = "user.role_changed"
 	ActionUserStatusChanged = "user.status_changed"
+	// ActionUserCreated and ActionUserPasswordReset cover the accounts the
+	// operator CLI creates or recovers. They have no HTTP actor, so their
+	// metadata names the source instead.
+	ActionUserCreated       = "user.created"
+	ActionUserPasswordReset = "user.password_reset"
 	ActionAdminLogin        = "admin.login"
 	// ActionBookingSettingsUpdated records a change to the platform pricing
 	// policy: a value edit with money behind it, so it belongs in the log even

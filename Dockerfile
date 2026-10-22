@@ -1,11 +1,13 @@
-# Multi-stage build producing the three process images from one module
-# (SDD 12.2). Each service runs its own binary rather than one binary with a
-# mode flag: the public API image has no admin routes compiled into it at all,
-# which is the same isolation argument as the separate signing keys (SDD 10.2).
+# Multi-stage build producing the three service images and the operator CLI
+# from one module (SDD 12.2). Each service runs its own binary rather than one
+# binary with a mode flag: the public API image has no admin routes compiled
+# into it at all, which is the same isolation argument as the separate signing
+# keys (SDD 10.2).
 #
-# Build all three with one image and pick the binary per service:
+# Build everything with one image and pick the binary per invocation:
 #   docker build -t matchup .
 #   docker run matchup /app/api        (or /app/admin, /app/worker)
+#   docker run -it --env-file .env matchup /app/cli createsuperuser
 
 # The builder is pinned to the toolchain in go.mod and documented in SDD 12.2.
 FROM golang:1.26-alpine AS builder
@@ -26,9 +28,10 @@ COPY . .
 # -trimpath keeps build paths out of the binary; the ldflags drop the symbol
 # table and DWARF, which is most of the size.
 ENV CGO_ENABLED=0 GOOS=linux
-RUN go build -trimpath -ldflags="-s -w" -o /out/api    ./cmd/api  \
- && go build -trimpath -ldflags="-s -w" -o /out/admin  ./cmd/admin \
- && go build -trimpath -ldflags="-s -w" -o /out/worker ./cmd/worker
+RUN go build -trimpath -ldflags="-s -w" -o /out/api    ./cmd/api    \
+ && go build -trimpath -ldflags="-s -w" -o /out/admin  ./cmd/admin  \
+ && go build -trimpath -ldflags="-s -w" -o /out/worker ./cmd/worker \
+ && go build -trimpath -ldflags="-s -w" -o /out/cli    ./cmd/cli
 
 # The migration tool ships in the image so a deploy can apply schema changes
 # with the exact version that was tested against them, and so a release step
@@ -46,6 +49,7 @@ WORKDIR /app
 COPY --from=builder /out/api    /app/api
 COPY --from=builder /out/admin  /app/admin
 COPY --from=builder /out/worker /app/worker
+COPY --from=builder /out/cli    /app/cli
 COPY --from=builder /go/bin/goose /app/goose
 # Carried so the migration step is `goose up` against a path in the image
 # rather than a volume mount that has to match the source tree.
