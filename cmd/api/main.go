@@ -74,6 +74,8 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// Local runs read .env; production sets the environment directly.
+	config.LoadDotEnv()
 	cfg, err := config.Load(config.NeedServe)
 	if err != nil {
 		return err
