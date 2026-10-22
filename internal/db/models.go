@@ -88,6 +88,15 @@ type EmailOutbox struct {
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
+type EmailVerificationToken struct {
+	ID        uuid.UUID  `json:"id"`
+	UserID    uuid.UUID  `json:"user_id"`
+	TokenHash []byte     `json:"token_hash"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
 type Field struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`

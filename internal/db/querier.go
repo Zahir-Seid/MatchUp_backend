@@ -47,6 +47,7 @@ type Querier interface {
 	// spin forever.
 	ClaimVerificationJobs(ctx context.Context, batchSize int32) ([]PaymentVerificationJob, error)
 	CompleteVerificationJob(ctx context.Context, id uuid.UUID) error
+	ConsumeEmailVerificationToken(ctx context.Context, id uuid.UUID) (int64, error)
 	ConsumePasswordResetToken(ctx context.Context, id uuid.UUID) (int64, error)
 	CountBookingsForAdmin(ctx context.Context, arg CountBookingsForAdminParams) (int64, error)
 	CountGamesForAdmin(ctx context.Context, arg CountGamesForAdminParams) (int64, error)
@@ -63,6 +64,7 @@ type Querier interface {
 	// so slot_index is supplied rather than derived; the two arrays are zipped by
 	// position.
 	CreateBookingParticipants(ctx context.Context, arg CreateBookingParticipantsParams) error
+	CreateEmailVerificationToken(ctx context.Context, arg CreateEmailVerificationTokenParams) (EmailVerificationToken, error)
 	CreateField(ctx context.Context, arg CreateFieldParams) (Field, error)
 	CreateGame(ctx context.Context, arg CreateGameParams) (Game, error)
 	// "Notify me when a spot frees up" (PRD FR29). Watching twice is a no-op, not
@@ -114,6 +116,7 @@ type Querier interface {
 	// The dashboard-editable booking policy. One row; see the migration.
 	GetBookingSettings(ctx context.Context) (BookingSetting, error)
 	GetBookingWithUser(ctx context.Context, id uuid.UUID) (GetBookingWithUserRow, error)
+	GetEmailVerificationTokenByHash(ctx context.Context, tokenHash []byte) (EmailVerificationToken, error)
 	GetField(ctx context.Context, id uuid.UUID) (Field, error)
 	GetGame(ctx context.Context, id uuid.UUID) (Game, error)
 	GetGameWatch(ctx context.Context, arg GetGameWatchParams) (bool, error)
@@ -132,6 +135,7 @@ type Querier interface {
 	// Raising capacity must credit the same delta to spots_remaining, or the
 	// new seats would exist on paper but never become bookable.
 	IncreaseGameCapacity(ctx context.Context, arg IncreaseGameCapacityParams) (Game, error)
+	InvalidateUserEmailVerificationTokens(ctx context.Context, userID uuid.UUID) (int64, error)
 	InvalidateUserPasswordResetTokens(ctx context.Context, userID uuid.UUID) (int64, error)
 	ListActiveFields(ctx context.Context) ([]Field, error)
 	// The other admins to alert when the receiving accounts change: everyone with
@@ -176,6 +180,7 @@ type Querier interface {
 	// future game that now has spots is worth telling anyone about, so a cancelled
 	// or started game cannot produce an alert even if its spots were released.
 	ListWatchersForAvailableGames(ctx context.Context, gameIds []uuid.UUID) ([]ListWatchersForAvailableGamesRow, error)
+	LockActiveAdmins(ctx context.Context) ([]uuid.UUID, error)
 	MarkAllNotificationsRead(ctx context.Context, userID uuid.UUID) (int64, error)
 	MarkDeliverySent(ctx context.Context, id uuid.UUID) error
 	// Success also scrubs the payload: a sent reset mail must not leave its

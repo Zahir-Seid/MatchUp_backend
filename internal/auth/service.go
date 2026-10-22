@@ -38,6 +38,8 @@ type Service struct {
 	log    *slog.Logger
 
 	resetTTL time.Duration
+	// verifyTTL bounds how long a signup email-verification link works.
+	verifyTTL time.Duration
 	// onLogin is an optional hook fired after a successful password sign-in.
 	onLogin func(ctx context.Context, user db.User)
 
@@ -56,6 +58,7 @@ type Options struct {
 	Google           IDTokenVerifier
 	Logger           *slog.Logger
 	ResetTTL         time.Duration
+	EmailVerifyTTL   time.Duration
 	RequireAdminRole bool
 	// OnLogin, when set, is called after a successful password sign-in. The
 	// admin binary uses it to record dashboard access in the audit log; the
@@ -71,12 +74,17 @@ func NewService(opts Options) *Service {
 	if log == nil {
 		log = slog.Default()
 	}
+	verifyTTL := opts.EmailVerifyTTL
+	if verifyTTL <= 0 {
+		verifyTTL = 24 * time.Hour
+	}
 	return &Service{
 		store:            opts.Store,
 		tokens:           opts.Tokens,
 		google:           opts.Google,
 		log:              log,
 		resetTTL:         opts.ResetTTL,
+		verifyTTL:        verifyTTL,
 		onLogin:          opts.OnLogin,
 		requireAdminRole: opts.RequireAdminRole,
 		now:              time.Now,

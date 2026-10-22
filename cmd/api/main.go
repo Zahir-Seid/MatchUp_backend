@@ -105,6 +105,9 @@ func run() error {
 		Google:   auth.NewGoogleVerifier(cfg.GoogleOAuthClientID),
 		Logger:   log,
 		ResetTTL: cfg.PasswordResetTTL,
+		// Signup verification links outlive reset links: players may not open
+		// the mail the same day.
+		EmailVerifyTTL: cfg.EmailVerifyTTL,
 	})
 	catalogSvc := catalog.NewService(store)
 	bookingSvc := booking.NewService(booking.Options{

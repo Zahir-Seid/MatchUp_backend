@@ -12,6 +12,19 @@ import (
 	"github.com/google/uuid"
 )
 
+const consumeEmailVerificationToken = `-- name: ConsumeEmailVerificationToken :execrows
+UPDATE email_verification_tokens SET used_at = now()
+WHERE id = $1 AND used_at IS NULL AND expires_at > now()
+`
+
+func (q *Queries) ConsumeEmailVerificationToken(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, consumeEmailVerificationToken, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const consumePasswordResetToken = `-- name: ConsumePasswordResetToken :execrows
 UPDATE password_reset_tokens SET used_at = now()
 WHERE id = $1 AND used_at IS NULL AND expires_at > now()
@@ -43,6 +56,32 @@ func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, 
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const createEmailVerificationToken = `-- name: CreateEmailVerificationToken :one
+INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
+VALUES ($1, $2, $3)
+RETURNING id, user_id, token_hash, expires_at, used_at, created_at
+`
+
+type CreateEmailVerificationTokenParams struct {
+	UserID    uuid.UUID `json:"user_id"`
+	TokenHash []byte    `json:"token_hash"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (q *Queries) CreateEmailVerificationToken(ctx context.Context, arg CreateEmailVerificationTokenParams) (EmailVerificationToken, error) {
+	row := q.db.QueryRow(ctx, createEmailVerificationToken, arg.UserID, arg.TokenHash, arg.ExpiresAt)
+	var i EmailVerificationToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.UsedAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const createOAuthIdentity = `-- name: CreateOAuthIdentity :one
@@ -183,6 +222,24 @@ func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
 	return result.RowsAffected(), nil
 }
 
+const getEmailVerificationTokenByHash = `-- name: GetEmailVerificationTokenByHash :one
+SELECT id, user_id, token_hash, expires_at, used_at, created_at FROM email_verification_tokens WHERE token_hash = $1
+`
+
+func (q *Queries) GetEmailVerificationTokenByHash(ctx context.Context, tokenHash []byte) (EmailVerificationToken, error) {
+	row := q.db.QueryRow(ctx, getEmailVerificationTokenByHash, tokenHash)
+	var i EmailVerificationToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.UsedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getPasswordResetTokenByHash = `-- name: GetPasswordResetTokenByHash :one
 SELECT id, user_id, token_hash, expires_at, used_at, created_at FROM password_reset_tokens WHERE token_hash = $1
 `
@@ -297,6 +354,19 @@ func (q *Queries) GetUserByOAuthSubject(ctx context.Context, arg GetUserByOAuthS
 	return i, err
 }
 
+const invalidateUserEmailVerificationTokens = `-- name: InvalidateUserEmailVerificationTokens :execrows
+UPDATE email_verification_tokens SET used_at = now()
+WHERE user_id = $1 AND used_at IS NULL
+`
+
+func (q *Queries) InvalidateUserEmailVerificationTokens(ctx context.Context, userID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, invalidateUserEmailVerificationTokens, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const invalidateUserPasswordResetTokens = `-- name: InvalidateUserPasswordResetTokens :execrows
 UPDATE password_reset_tokens SET used_at = now()
 WHERE user_id = $1 AND used_at IS NULL
@@ -357,6 +427,30 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockActiveAdmins = `-- name: LockActiveAdmins :many
+SELECT id FROM users WHERE role = 'admin' AND status = 'active' FOR UPDATE
+`
+
+func (q *Queries) LockActiveAdmins(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockActiveAdmins)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

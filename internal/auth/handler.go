@@ -37,6 +37,7 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Method(http.MethodPost, "/google", httpx.Handler(h.google))
 			r.Method(http.MethodPost, "/password-reset/request", httpx.Handler(h.requestReset))
 			r.Method(http.MethodPost, "/password-reset/confirm", httpx.Handler(h.confirmReset))
+			r.Method(http.MethodPost, "/email-verification/confirm", httpx.Handler(h.confirmEmailVerification))
 		})
 		r.Method(http.MethodPost, "/refresh", httpx.Handler(h.refresh))
 		r.Method(http.MethodPost, "/logout", httpx.Handler(h.logout))
@@ -83,6 +84,10 @@ func (h *Handler) AuthedRoutes(r chi.Router) {
 	r.Method(http.MethodGet, "/me", httpx.Handler(h.me))
 	r.Method(http.MethodPost, "/auth/password/change", httpx.Handler(h.changePassword))
 	r.Method(http.MethodPost, "/auth/logout-all", httpx.Handler(h.logoutAll))
+	r.Group(func(r chi.Router) {
+		r.Use(h.strict)
+		r.Method(http.MethodPost, "/auth/email-verification/request", httpx.Handler(h.requestEmailVerification))
+	})
 }
 
 // userResponse is the public shape of an account. The password hash and

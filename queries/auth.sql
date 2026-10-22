@@ -9,6 +9,9 @@ SELECT * FROM users WHERE email = $1;
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = $1;
 
+-- name: LockActiveAdmins :many
+SELECT id FROM users WHERE role = 'admin' AND status = 'active' FOR UPDATE;
+
 -- name: UpdateUserPassword :exec
 UPDATE users SET password_hash = $2 WHERE id = $1;
 
@@ -82,6 +85,22 @@ WHERE id = $1 AND used_at IS NULL AND expires_at > now();
 
 -- name: InvalidateUserPasswordResetTokens :execrows
 UPDATE password_reset_tokens SET used_at = now()
+WHERE user_id = $1 AND used_at IS NULL;
+
+-- name: CreateEmailVerificationToken :one
+INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
+VALUES ($1, $2, $3)
+RETURNING *;
+
+-- name: GetEmailVerificationTokenByHash :one
+SELECT * FROM email_verification_tokens WHERE token_hash = $1;
+
+-- name: ConsumeEmailVerificationToken :execrows
+UPDATE email_verification_tokens SET used_at = now()
+WHERE id = $1 AND used_at IS NULL AND expires_at > now();
+
+-- name: InvalidateUserEmailVerificationTokens :execrows
+UPDATE email_verification_tokens SET used_at = now()
 WHERE user_id = $1 AND used_at IS NULL;
 
 -- Role changes are audited by the caller; the query itself only guards against
